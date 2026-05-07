@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PO Tracker Stats</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #1f2937;
+            min-height: 100vh;
+        }
+
+        .container { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header h1 { font-size: 1.6rem; font-weight: 700; }
+        .header-sub { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+
+        .import-area { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+        /* ── Buttons ── */
+        .btn {
+            padding: 9px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: background 0.15s, opacity 0.15s;
+        }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .import-msg { font-size: 0.78rem; color: #6b7280; text-align: right; }
+        .import-msg.ok { color: #16a34a; }
+        .import-msg.err { color: #dc2626; }
+
+        /* ── Summary cards ── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 700px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #9ca3af;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .card-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+        .card-sub { font-size: 0.78rem; color: #6b7280; margin-top: 5px; }
+
+        .val-blue   { color: #2563eb; }
+        .val-amber  { color: #d97706; }
+        .val-green  { color: #16a34a; }
+        .val-purple { color: #7c3aed; }
+
+        /* ── Charts ── */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } }
+
+        .chart-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .chart-card.full-width { margin-bottom: 24px; }
+        .section-title { font-size: 0.95rem; font-weight: 600; color: #374151; margin-bottom: 16px; }
+
+        /* ── Filter bar ── */
+        .filter-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 14px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .filter-label { font-size: 0.78rem; font-weight: 700; color: #374151; white-space: nowrap; letter-spacing: 0.04em; text-transform: uppercase; }
+        .filter-inputs { display: flex; align-items: center; gap: 8px; }
+        .filter-sep { color: #9ca3af; }
+
+        /* ── Gauge ── */
+        .gauge-container { position: relative; width: 100%; }
+        .gauge-container canvas { display: block; width: 100%; height: auto; }
+        .btn-quick.active { background: #2563eb; color: white; border-color: #2563eb; }
+
+        /* ── Full-width day chart ── */
+        .day-chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+        .day-chart-header .section-title { margin-bottom: 0; }
+        #dayChartLegend { display: flex; gap: 14px; flex-wrap: wrap; }
+        .day-chart-annotation { margin-top: 10px; font-size: 0.8rem; color: #6b7280; text-align: center; }
+
+        /* ── Collapsible gap section ── */
+        .gap-summary-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6; flex-wrap: wrap; gap: 10px; }
+        .gap-summary-pills { display: flex; gap: 16px; font-size: 0.85rem; color: #374151; flex-wrap: wrap; align-items: center; }
+        .collapse-toggle { background: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 0.78rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 6px; transition: background 0.1s; white-space: nowrap; }
+        .collapse-toggle:hover { background: #f3f4f6; }
+        #gapToggleArrow { display: inline-block; transition: transform 0.25s; }
+        #gapToggleArrow.flipped { transform: rotate(180deg); }
+        .gap-body { margin-top: 16px; }
+
+        /* ── Gap analysis ── */
+        .gap-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+        }
+        .gap-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .gap-controls .section-title { margin-bottom: 0; margin-right: 4px; }
+
+        input[type="date"] {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 0.875rem;
+            color: #1f2937;
+            background: #f9fafb;
+        }
+        input[type="date"]:focus { outline: 2px solid #2563eb; border-color: transparent; }
+
+        .date-label { font-size: 0.78rem; color: #6b7280; font-weight: 500; }
+
+        .quick-btns { display: flex; gap: 5px; margin-left: 4px; }
+        .btn-quick {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #374151;
+            transition: background 0.1s;
+        }
+        .btn-quick:hover { background: #f3f4f6; border-color: #9ca3af; }
+
+        /* Range summary bar */
+        .range-summary-bar {
+            display: flex;
+            gap: 20px;
+            padding: 10px 14px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            font-size: 0.85rem;
+            color: #374151;
+            flex-wrap: wrap;
+            border: 1px solid #e5e7eb;
+        }
+
+        /* Timeline bar */
+        .timeline {
+            display: flex;
+            height: 36px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #e5e7eb;
+        }
+        .seg {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.92);
+            overflow: hidden;
+            white-space: nowrap;
+            min-width: 0;
+        }
+        .seg-work     { background: #16a34a; }
+        .seg-gap      { background: #ef4444; }
+        .seg-lunch    { background: #9ca3af; }
+        .seg-overtime { background: #4ade80; }
+
+        .timeline-axis {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.68rem;
+            color: #9ca3af;
+            margin-top: 3px;
+            margin-bottom: 8px;
+            padding: 0 2px;
+        }
+
+        /* Day blocks */
+        .day-blocks { display: flex; flex-direction: column; gap: 12px; }
+        .day-block {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+        .day-block.day-empty {
+            border-style: dashed;
+            background: #fafafa;
+            padding: 10px 14px;
+        }
+        .day-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .day-label { font-weight: 700; font-size: 0.88rem; min-width: 115px; }
+
+        .pill {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 2px 9px;
+            border-radius: 9999px;
+        }
+        .pill-late     { background: #fef3c7; color: #92400e; }
+        .pill-overtime { background: #dcfce7; color: #166534; }
+
+        .gap-badge {
+            margin-left: auto;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 9999px;
+        }
+        .gap-badge-ok   { background: #d1fae5; color: #065f46; }
+        .gap-badge-warn { background: #fef3c7; color: #92400e; }
+        .gap-badge-bad  { background: #fee2e2; color: #991b1b; }
+
+        /* Gap list */
+        .gap-list { display: flex; flex-direction: column; gap: 5px; }
+        .gap-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            background: #fef2f2;
+            border-radius: 6px;
+            border-left: 3px solid #ef4444;
+        }
+        .gap-item-time { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .gap-item-dur  { font-size: 0.75rem; color: #ef4444; font-weight: 600; }
+        .no-gaps {
+            padding: 8px 12px;
+            background: #f0fdf4;
+            border-radius: 6px;
+            color: #16a34a;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+        .gap-placeholder { color: #9ca3af; font-size: 0.875rem; }
+
+        /* ── Legend ── */
+        .legend { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: #6b7280; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+        /* ── Patterns ── */
+        .patterns-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+        @media (max-width: 700px) { .patterns-grid { grid-template-columns: 1fr; } }
+
+        .patterns-section-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #9ca3af;
+            margin-bottom: 12px;
+        }
+        .slot-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 7px;
+            font-size: 0.8rem;
+        }
+        .slot-label { width: 110px; flex-shrink: 0; color: #374151; font-variant-numeric: tabular-nums; }
+        .slot-bar-track { flex: 1; height: 10px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+        .slot-bar-fill  { height: 100%; border-radius: 4px; transition: width 0.4s; }
+        .slot-stat { width: 72px; flex-shrink: 0; text-align: right; color: #6b7280; }
+
+        .dow-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 7px;
+            font-size: 0.8rem;
+        }
+        .dow-label { width: 36px; flex-shrink: 0; font-weight: 600; color: #374151; }
+        .dow-bar-track { flex: 1; height: 10px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+        .dow-bar-fill  { height: 100%; border-radius: 4px; background: #ef4444; transition: width 0.4s; }
+        .dow-stat { width: 72px; flex-shrink: 0; text-align: right; color: #6b7280; }
+
+        .patterns-empty { color: #9ca3af; font-size: 0.875rem; }
+
+        /* ── Orders table ── */
+        .table-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #9ca3af;
+            font-weight: 600;
+            border-bottom: 1px solid #e5e7eb;
+            white-space: nowrap;
+        }
+        td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: #f9fafb; }
+
+        .po-num { font-family: 'Courier New', monospace; font-weight: 600; font-size: 0.85rem; }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            background: #dbeafe;
+            color: #1e40af;
+            font-size: 0.68rem;
+            font-weight: 600;
+            margin: 1px 2px 1px 0;
+            white-space: nowrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .badge-active   { background: #fef3c7; color: #92400e; }
+        .badge-finished { background: #d1fae5; color: #065f46; }
+
+        .empty-state { color: #9ca3af; text-align: center; padding: 28px; font-size: 0.875rem; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h1>PO Tracker Stats</h1>
+            <div class="header-sub">Purchase order time tracking &amp; analytics</div>
+        </div>
+        <div class="import-area">
+            <button class="btn btn-primary" id="importBtn" onclick="importFiles()">Import JSON Files</button>
+            <div class="import-msg" id="importMsg"></div>
+        </div>
+    </div>
+
+    <!-- Lifetime summary cards (always global, unaffected by date filter) -->
+    <div class="summary-grid">
+        <div class="card">
+            <div class="card-label">Total Orders</div>
+            <div class="card-value val-blue" id="ltOrders">—</div>
+            <div class="card-sub" id="ltOrdersSub"></div>
+        </div>
+        <div class="card">
+            <div class="card-label">Time Tracked</div>
+            <div class="card-value val-green" id="ltTracked">—</div>
+            <div class="card-sub" id="ltTrackedSub"></div>
+        </div>
+        <div class="card">
+            <div class="card-label">Inactive Time</div>
+            <div class="card-value val-amber" id="ltInactive">—</div>
+            <div class="card-sub" id="ltInactiveSub"></div>
+        </div>
+        <div class="card">
+            <div class="card-label">Working Days</div>
+            <div class="card-value val-purple" id="ltDays">—</div>
+            <div class="card-sub" id="ltDaysSub"></div>
+        </div>
+    </div>
+
+    <!-- Global date filter — drives all charts below -->
+    <div class="filter-bar">
+        <span class="filter-label">Period</span>
+        <div class="filter-inputs">
+            <input type="date" id="filterFrom" onchange="clearPreset(); applyFilter()">
+            <span class="filter-sep">–</span>
+            <input type="date" id="filterTo" onchange="clearPreset(); applyFilter()">
+        </div>
+        <div class="quick-btns">
+            <button class="btn-quick filter-preset" data-preset="today"    onclick="setFilter('today')">Today</button>
+            <button class="btn-quick filter-preset" data-preset="week"     onclick="setFilter('week')">This Week</button>
+            <button class="btn-quick filter-preset" data-preset="lastWeek" onclick="setFilter('lastWeek')">Last Week</button>
+            <button class="btn-quick filter-preset" data-preset="month"    onclick="setFilter('month')">This Month</button>
+            <button class="btn-quick filter-preset active" data-preset="all" onclick="setFilter('all')">All Time</button>
+        </div>
+    </div>
+
+    <!-- Charts: tag + gauge -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="section-title">Time by Tag (hours)</div>
+            <canvas id="tagChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <div class="section-title">Avg Hours / Day</div>
+            <div class="gauge-container">
+                <canvas id="gaugeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-width time by day -->
+    <div class="chart-card full-width">
+        <div class="day-chart-header">
+            <div class="section-title">Time by Day (hours)</div>
+            <div id="dayChartLegend"></div>
+        </div>
+        <canvas id="dayChart"></canvas>
+        <div id="dayChartAnnotation" class="day-chart-annotation"></div>
+    </div>
+
+    <!-- Gap analysis (collapsible, driven by global date filter) -->
+    <div class="gap-card">
+        <div class="section-title">Inactive Gaps</div>
+        <div id="gapSummaryRow" class="gap-summary-row" style="display:none">
+            <div class="gap-summary-pills" id="gapSummaryPills"></div>
+            <button class="collapse-toggle" onclick="toggleGapBody()">
+                <span id="gapToggleText">Show breakdown</span>
+                <span id="gapToggleArrow">▼</span>
+            </button>
+        </div>
+        <div class="gap-body" id="gapBody" style="display:none"></div>
+    </div>
+
+    <!-- Inactive patterns -->
+    <div class="gap-card">
+        <div class="section-title">Inactive Patterns</div>
+        <div class="patterns-grid" id="patternsGrid">
+            <div class="patterns-empty">Loading…</div>
+        </div>
+    </div>
+
+    <!-- Orders table -->
+    <div class="table-card">
+        <div class="section-title">All Orders</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>PO Number</th>
+                        <th>Tags</th>
+                        <th>Sessions</th>
+                        <th>CNF</th>
+                        <th>Total Time</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersBody">
+                    <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ── Constants ────────────────────────────────────────────────────
+const WORK_START_MIN = 7 * 60 + 30;
+const WORK_END_MIN   = 16 * 60;
+const LUNCH_START    = 12 * 60;
+const LUNCH_END      = 12 * 60 + 30;
+
+// ── Utilities ────────────────────────────────────────────────────
+function fmtMs(ms) {
+    if (!ms) return '0m';
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+}
+
+function fmtMin(min) {
+    if (!min) return '0m';
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+}
+
+function fmtDate(ms) {
+    if (!ms) return '—';
+    return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function timeToMin(str) {
+    const [h, m] = str.split(':').map(Number);
+    return h * 60 + m;
+}
+
+function fmtDateLabel(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+// ── Chart state ──────────────────────────────────────────────────
+let tagChart, dayChart;
+
+const CHART_DEFAULTS = {
+    plugins: { legend: { display: false } },
+    scales: {
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 11 } }, beginAtZero: true },
+    },
+    animation: { duration: 400 },
+};
+
+// ── Lifetime summary cards ────────────────────────────────────────
+async function loadLifetime() {
+    const r = await fetch('/api/lifetime');
+    const d = await r.json();
+
+    document.getElementById('ltOrders').textContent  = d.total_orders;
+    document.getElementById('ltOrdersSub').textContent = `${d.active_orders} active · ${d.finished_orders} finished`;
+
+    const trackedH = Math.floor(d.total_ms / 3600000);
+    document.getElementById('ltTracked').textContent    = `${trackedH}h`;
+    document.getElementById('ltTrackedSub').textContent = fmtMs(d.total_ms);
+
+    document.getElementById('ltInactive').textContent    = fmtMin(d.total_gap_min);
+    document.getElementById('ltInactiveSub').textContent =
+        d.working_days > 0 ? `avg ${Math.round(d.total_gap_min / d.working_days)} min/day` : '';
+
+    document.getElementById('ltDays').textContent    = d.working_days;
+    document.getElementById('ltDaysSub').textContent = d.min_date
+        ? `${d.min_date} → ${d.max_date}` : 'no data yet';
+}
+
+// ── Global filter ─────────────────────────────────────────────────
+function setFilter(preset) {
+    const today = new Date();
+    let from = '', to = '';
+
+    // iso uses local date parts to avoid UTC-offset day slippage from toISOString()
+    const iso = d => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+    // Days since Monday (0 = Mon … 6 = Sun in JS Sunday=0 convention)
+    const daysSinceMon = today.getDay() === 0 ? 6 : today.getDay() - 1;
+
+    if (preset === 'today') {
+        from = to = iso(today);
+    } else if (preset === 'week') {
+        const mon = new Date(today); mon.setDate(today.getDate() - daysSinceMon);
+        const fri = new Date(mon);  fri.setDate(mon.getDate() + 4);
+        from = iso(mon); to = iso(fri);
+    } else if (preset === 'lastWeek') {
+        const mon = new Date(today); mon.setDate(today.getDate() - daysSinceMon - 7);
+        const fri = new Date(mon);  fri.setDate(mon.getDate() + 4);
+        from = iso(mon); to = iso(fri);
+    } else if (preset === 'month') {
+        from = iso(new Date(today.getFullYear(), today.getMonth(), 1));
+        to   = iso(today);
+    }
+    // 'all' → from/to stay empty
+
+    document.getElementById('filterFrom').value = from;
+    document.getElementById('filterTo').value   = to;
+
+    document.querySelectorAll('.filter-preset').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.filter-preset[data-preset="${preset}"]`).classList.add('active');
+
+    applyFilter();
+}
+
+function clearPreset() {
+    document.querySelectorAll('.filter-preset').forEach(b => b.classList.remove('active'));
+}
+
+function applyFilter() {
+    const from = document.getElementById('filterFrom').value;
+    const to   = document.getElementById('filterTo').value;
+    loadCharts(from, to);
+    loadGauge(from, to);
+    loadGaps(from, to);
+    loadPatterns(from, to);
+}
+
+// ── Charts (tag + day) ────────────────────────────────────────────
+async function loadCharts(from, to) {
+    let url = '/api/summary';
+    if (from && to) url += `?from=${from}&to=${to}`;
+    const r = await fetch(url);
+    const d = await r.json();
+
+    if (tagChart) tagChart.destroy();
+    tagChart = new Chart(document.getElementById('tagChart'), {
+        type: 'bar',
+        data: {
+            labels: d.tag_times.map(t => t.tag),
+            datasets: [{ data: d.tag_times.map(t => +(t.total_ms / 3600000).toFixed(2)),
+                         backgroundColor: '#3b82f6', borderRadius: 5, borderSkipped: false }],
+        },
+        options: { ...CHART_DEFAULTS },
+    });
+
+    renderDayChart(d.day_times);
+}
+
+function renderDayChart(dayTimes) {
+    if (dayChart) dayChart.destroy();
+    if (!dayTimes.length) return;
+
+    const values  = dayTimes.map(t => +(t.total_ms / 3600000).toFixed(2));
+    const maxVal  = Math.max(...values);
+    const minVal  = Math.min(...values);
+    const maxIdx  = values.indexOf(maxVal);
+    const minIdx  = values.lastIndexOf(minVal);   // last in case of ties
+    const hasRange = maxIdx !== minIdx;
+
+    const colors = values.map((_, i) =>
+        i === maxIdx ? '#16a34a' :
+        i === minIdx && hasRange ? '#ef4444' :
+        '#3b82f6'
+    );
+
+    dayChart = new Chart(document.getElementById('dayChart'), {
+        type: 'bar',
+        data: {
+            labels: dayTimes.map(t => t.day),
+            datasets: [{ data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false }],
+        },
+        options: { ...CHART_DEFAULTS },
+    });
+
+    // Legend
+    const legendEl = document.getElementById('dayChartLegend');
+    const dot = (color, label) =>
+        `<span style="display:flex;align-items:center;gap:4px;font-size:0.75rem;color:#6b7280">
+            <span style="width:12px;height:12px;background:${color};border-radius:2px;display:inline-block"></span>${label}
+         </span>`;
+    legendEl.innerHTML = hasRange
+        ? dot('#16a34a', 'Best day') + dot('#ef4444', 'Worst day') + dot('#3b82f6', 'Other days')
+        : dot('#3b82f6', 'Days');
+
+    // Annotation
+    const ann = document.getElementById('dayChartAnnotation');
+    if (hasRange) {
+        const bestH  = dayTimes[maxIdx].total_ms / 3600000;
+        const worstH = dayTimes[minIdx].total_ms / 3600000;
+        ann.innerHTML =
+            `<span style="color:#16a34a">▲ Best: ${dayTimes[maxIdx].day} (${bestH.toFixed(1)}h)</span>` +
+            `&nbsp;&nbsp;|&nbsp;&nbsp;` +
+            `<span style="color:#ef4444">▼ Worst: ${dayTimes[minIdx].day} (${worstH.toFixed(1)}h)</span>`;
+    } else {
+        ann.innerHTML = '';
+    }
+}
+
+// ── Gauge ─────────────────────────────────────────────────────────
+async function loadGauge(from, to) {
+    let url = '/api/worked';
+    if (from && to) url += `?from=${from}&to=${to}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    renderGauge(d.total_ms, d.target_ms, d.working_days, d.active_days);
+}
+
+function renderGauge(totalMs, targetMs, workingDays, activeDays) {
+    activeDays = activeDays ?? workingDays;  // fallback for any old callers
+    const MAX_H  = 8;
+    const canvas = document.getElementById('gaugeChart');
+    const ctx    = canvas.getContext('2d');
+
+    // Fixed intrinsic resolution; CSS scales it to fill the card column
+    const W = 400, H = 220;
+    canvas.width  = W;
+    canvas.height = H;
+
+    const cx     = W / 2;   // 200
+    const cy     = 148;     // arc centre — 72 px below for text, ~32 px clearance at top
+    const r      = 116;     // arc radius
+    const trackW = 28;
+
+    // avgH: average hours over days that had sessions (inactive days excluded)
+    const avgH = activeDays > 0 ? (totalMs / 3600000) / activeDays : 0;
+    const pct  = targetMs > 0 ? totalMs / targetMs : 0;
+    // Map hours to canvas angle: h=0 → π (9 o'clock), h=MAX_H → 2π (3 o'clock), through 12 o'clock
+    const h2a  = h => Math.PI + (Math.min(h, MAX_H) / MAX_H) * Math.PI;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // ── Coloured zone arcs ───────────────────────────────────────────
+    const zones = [
+        { from: 0,    to: 6,    color: '#fca5a5' },   // red
+        { from: 6,    to: 6.25, color: '#fef08a' },   // yellow
+        { from: 6.25, to: 7,    color: '#bbf7d0' },   // light green
+        { from: 7,    to: MAX_H, color: '#4ade80' },  // green
+    ];
+    ctx.lineWidth = trackW;
+    ctx.lineCap   = 'butt';
+    for (const z of zones) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, h2a(z.from), h2a(z.to));
+        ctx.strokeStyle = z.color;
+        ctx.stroke();
+    }
+
+    // ── White separator ticks at zone boundaries ──────────────────────
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth   = 2;
+    for (const h of [6, 6.25, 7]) {
+        const a = h2a(h);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(a);
+        ctx.beginPath();
+        ctx.moveTo(r - trackW / 2 - 1, 0);
+        ctx.lineTo(r + trackW / 2 + 1, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // ── Hour labels around arc ────────────────────────────────────────
+    const labelR = r + 22;
+    ctx.fillStyle    = '#6b7280';
+    ctx.font         = '12px system-ui, sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    for (const [h, txt] of [[0, '0h'], [6, '6h'], [7, '7h'], [MAX_H, '8h']]) {
+        const a  = h2a(h);
+        const lx = cx + labelR * Math.cos(a);
+        // Push 0h / 8h labels slightly below the arc endpoints for readability
+        const ly = cy + labelR * Math.sin(a) + (h === 0 || h === MAX_H ? 8 : 0);
+        ctx.fillText(txt, lx, ly);
+    }
+
+    // ── Needle ────────────────────────────────────────────────────────
+    const needleA = h2a(Math.min(avgH, MAX_H));
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + (r - 10) * Math.cos(needleA), cy + (r - 10) * Math.sin(needleA));
+    ctx.strokeStyle = '#374151';
+    ctx.lineWidth   = 3;
+    ctx.lineCap     = 'round';
+    ctx.stroke();
+
+    // ── Hub ───────────────────────────────────────────────────────────
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
+    ctx.fillStyle = '#374151';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = 'white';
+    ctx.fill();
+
+    // ── Text below arc ────────────────────────────────────────────────
+    // Needle and zones are based on average hours per working day
+    const zoneLabel = avgH >= 7    ? 'On Target'
+                    : avgH >= 6.25 ? 'Getting There'
+                    : avgH >= 6    ? 'Below Target'
+                    : activeDays   ? 'Behind'
+                    : 'No Data';
+    const zoneColor = avgH >= 7    ? '#16a34a'
+                    : avgH >= 6.25 ? '#65a30d'
+                    : avgH >= 6    ? '#d97706'
+                    : activeDays   ? '#dc2626'
+                    : '#9ca3af';
+
+    // Primary: avg over active days only (inactive days excluded from denominator)
+    const primaryText = activeDays <= 1
+        ? fmtMs(totalMs)
+        : fmtMs(Math.round(totalMs / activeDays)) + ' avg/day';
+
+    const subText = activeDays > 0
+        ? `${Math.round(pct * 100)}% · total ${fmtMs(totalMs)} · ${activeDays} day${activeDays !== 1 ? 's' : ''}`
+        : 'No sessions in this period';
+
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+
+    ctx.font      = 'bold 12px system-ui, sans-serif';
+    ctx.fillStyle = zoneColor;
+    ctx.fillText(zoneLabel, cx, cy + 12);
+
+    ctx.font      = 'bold 24px system-ui, sans-serif';
+    ctx.fillStyle = '#111827';
+    ctx.fillText(primaryText, cx, cy + 28);
+
+    ctx.font      = '11px system-ui, sans-serif';
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText(subText, cx, cy + 62);
+}
+
+// ── Orders table ─────────────────────────────────────────────────
+async function loadOrders() {
+    const r = await fetch('/api/orders');
+    const orders = await r.json();
+    const tbody = document.getElementById('ordersBody');
+
+    if (!orders.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No orders yet — import a JSON file to get started.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = orders.map(o => `
+        <tr>
+            <td><span class="po-num">${o.po}</span></td>
+            <td>${o.tags.map(t => `<span class="tag">${t}</span>`).join('')}</td>
+            <td style="text-align:center">${o.session_count}</td>
+            <td style="text-align:center;color:#6b7280;font-size:0.8rem">${o.cnf_count}/${o.session_count}</td>
+            <td>${fmtMs(o.total_ms)}</td>
+            <td><span class="badge ${o.finished ? 'badge-finished' : 'badge-active'}">${o.finished ? 'Finished' : 'Active'}</span></td>
+            <td style="white-space:nowrap;color:#6b7280;font-size:0.8rem">${fmtDate(o.created)}</td>
+        </tr>
+    `).join('');
+}
+
+// ── Import ────────────────────────────────────────────────────────
+async function importFiles() {
+    const btn = document.getElementById('importBtn');
+    const msg = document.getElementById('importMsg');
+    btn.disabled = true;
+    btn.textContent = 'Importing…';
+    msg.textContent = '';
+    msg.className = 'import-msg';
+
+    try {
+        const r = await fetch('/api/import', { method: 'POST' });
+        const d = await r.json();
+
+        if (d.errors && d.errors.length) {
+            msg.textContent = `Error: ${d.errors[0].error}`;
+            msg.className = 'import-msg err';
+        } else {
+            const n = d.imported.length;
+            const s = d.skipped.length;
+            msg.textContent = n > 0
+                ? `Imported ${n} file${n !== 1 ? 's' : ''} (${s} already imported)`
+                : `No new files — ${s} already imported`;
+            msg.className = 'import-msg ok';
+        }
+
+        if (d.imported.length > 0) {
+            await Promise.all([loadLifetime(), loadOrders()]);
+            applyFilter();
+        }
+    } catch (e) {
+        msg.textContent = 'Failed: ' + e.message;
+        msg.className = 'import-msg err';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Import JSON Files';
+    }
+}
+
+// ── Inactive patterns ─────────────────────────────────────────────
+async function loadPatterns(from, to) {
+    let url = '/api/patterns';
+    if (from && to) url += `?from=${from}&to=${to}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const grid = document.getElementById('patternsGrid');
+
+    if (d.total_days === 0) {
+        grid.innerHTML = '<div class="patterns-empty">No data for this period.</div>';
+        return;
+    }
+
+    // ── Time-of-day slots ──────────────────────────────────────────
+    const maxSlotDays = Math.max(...d.slots.map(s => s.inactive_days), 1);
+    const slotColor = pct =>
+        pct >= 60 ? '#ef4444' : pct >= 30 ? '#f59e0b' : '#94a3b8';
+
+    const slotsHtml = d.slots.map(s => {
+        const barW  = Math.round(s.inactive_days / maxSlotDays * 100);
+        const label = s.inactive_days === 0
+            ? '<span style="color:#d1fae5;font-size:0.7rem">✓ clear</span>'
+            : `${s.inactive_days}/${d.total_days} days`;
+        return `<div class="slot-row">
+            <span class="slot-label">${s.label}</span>
+            <div class="slot-bar-track">
+                <div class="slot-bar-fill" style="width:${barW}%;background:${slotColor(s.pct)}"></div>
+            </div>
+            <span class="slot-stat">${label}</span>
+        </div>`;
+    }).join('');
+
+    // ── Day-of-week ────────────────────────────────────────────────
+    const maxDowGap = Math.max(...d.by_dow.map(x => x.avg_gap_min), 1);
+    const dowColor = min =>
+        min >= 30 ? '#ef4444' : min >= 15 ? '#f59e0b' : '#4ade80';
+
+    const dowHtml = d.by_dow.map(x => {
+        const barW = Math.round(x.avg_gap_min / maxDowGap * 100);
+        const stat = x.days_tracked === 0
+            ? '<span style="color:#9ca3af">no data</span>'
+            : `${x.avg_gap_min} min avg`;
+        return `<div class="dow-row">
+            <span class="dow-label">${x.day}</span>
+            <div class="dow-bar-track">
+                <div class="dow-bar-fill" style="width:${barW}%;background:${dowColor(x.avg_gap_min)}"></div>
+            </div>
+            <span class="dow-stat">${stat}</span>
+        </div>`;
+    }).join('');
+
+    grid.innerHTML = `
+        <div>
+            <div class="patterns-section-label">Most inactive time slots (30 min windows)</div>
+            ${slotsHtml}
+        </div>
+        <div>
+            <div class="patterns-section-label">Avg inactive time by day of week</div>
+            ${dowHtml}
+            <div style="margin-top:10px;font-size:0.75rem;color:#9ca3af">
+                Based on ${d.total_days} day${d.total_days !== 1 ? 's' : ''} tracked
+            </div>
+        </div>`;
+}
+
+// ── Gap analysis ──────────────────────────────────────────────────
+async function loadGaps(from, to) {
+    let url = '/api/gaps';
+    if (from && to) url += `?from=${from}&to=${to}`;
+    const r = await fetch(url);
+    const { days, summary } = await r.json();
+
+    // Always-visible summary row
+    const summaryRow   = document.getElementById('gapSummaryRow');
+    const summaryPills = document.getElementById('gapSummaryPills');
+    summaryRow.style.display = 'flex';
+
+    if (summary.days_with_data === 0) {
+        summaryPills.innerHTML =
+            '<span style="color:#9ca3af;font-size:0.85rem">No sessions found in this range.</span>';
+        document.getElementById('gapBody').style.display = 'none';
+        document.getElementById('gapBody').innerHTML = '';
+        return;
+    }
+
+    summaryPills.innerHTML =
+        `<strong>${summary.days_with_data}</strong> day${summary.days_with_data !== 1 ? 's' : ''} tracked
+         <span style="color:#d1d5db">·</span>
+         Total gaps: <strong style="color:#ef4444">${summary.total_gap_min} min</strong>
+         <span style="color:#d1d5db">·</span>
+         Avg: <strong>${summary.avg_gap_min} min/day</strong>`;
+
+    const legendHtml = `
+        <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div> Working</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Inactive gap</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#9ca3af"></div> Lunch (excluded)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div> Overtime past 16:00</div>
+        </div>`;
+
+    const dayBlocksHtml = days.filter(day => day.has_sessions).map(day => {
+
+        const firstMin = timeToMin(day.first_session);
+        const lastMin  = timeToMin(day.last_session);
+
+        const lateMin = firstMin - WORK_START_MIN;
+        const lateHtml = lateMin > 5
+            ? `<span class="pill pill-late">In ${day.first_session}</span>` : '';
+        const overtimeMin = lastMin - WORK_END_MIN;
+        const overtimeHtml = overtimeMin > 5
+            ? `<span class="pill pill-overtime">Out ${day.last_session}</span>` : '';
+
+        const workedH = Math.floor(day.total_worked_min / 60);
+        const workedM = day.total_worked_min % 60;
+        const workedStr = workedH > 0 ? `${workedH}h ${workedM}m` : `${workedM}m`;
+
+        const badgeClass = day.total_gap_min > 30 ? 'gap-badge-bad'
+                         : day.total_gap_min > 0  ? 'gap-badge-warn'
+                         :                          'gap-badge-ok';
+        const badgeText = day.total_gap_min > 0
+            ? `${day.total_gap_min} min gap`
+            : 'No gaps';
+
+        const gapListHtml = day.gaps.length === 0
+            ? '<div class="no-gaps">No significant gaps!</div>'
+            : day.gaps.map(g => `
+                <div class="gap-item">
+                    <div class="gap-item-time">${g.start} – ${g.end}</div>
+                    <div class="gap-item-dur">${g.duration_min} min inactive</div>
+                </div>`).join('');
+
+        const axisEnd = timeToMin(day.day_end) > WORK_END_MIN ? '16:00+' : '16:00';
+
+        return `<div class="day-block">
+                    <div class="day-header">
+                        <span class="day-label">${fmtDateLabel(day.date)}</span>
+                        ${lateHtml}${overtimeHtml}
+                        <span style="font-size:0.78rem;color:#6b7280;margin-left:4px">Worked: <strong>${workedStr}</strong></span>
+                        <span class="gap-badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                    <div class="timeline">${buildTimeline(day)}</div>
+                    <div class="timeline-axis"><span>07:30</span><span>${axisEnd}</span></div>
+                    <div class="gap-list">${gapListHtml}</div>
+                </div>`;
+    }).join('');
+
+    const body = document.getElementById('gapBody');
+    body.innerHTML = legendHtml + `<div class="day-blocks">${dayBlocksHtml}</div>`;
+    // Keep body at its current visibility; don't auto-expand
+}
+
+function buildTimeline(day) {
+    const dayEndMin = timeToMin(day.day_end);  // max(16:00, last session end)
+    const span      = dayEndMin - WORK_START_MIN;
+
+    const segs = [];
+    let cursor = WORK_START_MIN;
+
+    for (const iv of day.active_intervals) {
+        const ivStart = timeToMin(iv.start);
+        const ivEnd   = timeToMin(iv.end);
+
+        // Gap before this session (within work window only)
+        const gapEnd = Math.min(ivStart, WORK_END_MIN);
+        if (gapEnd > cursor) {
+            pushGapSegs(cursor, gapEnd, segs);
+        }
+
+        // Work/overtime segment (clamp start to 07:30)
+        const workStart = Math.max(ivStart, WORK_START_MIN, cursor);
+        if (workStart < ivEnd) {
+            if (ivEnd > WORK_END_MIN && workStart < WORK_END_MIN) {
+                segs.push({ type: 'work',     start: workStart,   end: WORK_END_MIN });
+                segs.push({ type: 'overtime', start: WORK_END_MIN, end: ivEnd });
+            } else if (workStart >= WORK_END_MIN) {
+                segs.push({ type: 'overtime', start: workStart, end: ivEnd });
+            } else {
+                segs.push({ type: 'work', start: workStart, end: ivEnd });
+            }
+        }
+
+        cursor = ivEnd;
+    }
+
+    // Remaining gap within work window (left before 4pm)
+    if (cursor < WORK_END_MIN) {
+        pushGapSegs(cursor, WORK_END_MIN, segs);
+    }
+
+    return segs.map(seg => {
+        const pct = ((seg.end - seg.start) / span * 100).toFixed(2);
+        const dur = seg.end - seg.start;
+        const label = seg.type === 'work'     ? fmtMs(dur * 60000)
+                    : seg.type === 'overtime'  ? `+${Math.round(dur)}m OT`
+                    : seg.type === 'lunch'     ? 'Lunch'
+                    : `${Math.round(dur)}m`;
+        const show = parseFloat(pct) > 7 ? label : '';
+        return `<div class="seg seg-${seg.type}" style="width:${pct}%" title="${label}">${show}</div>`;
+    }).join('');
+}
+
+function pushGapSegs(gapStart, gapEnd, segs) {
+    if (gapEnd <= LUNCH_START || gapStart >= LUNCH_END) {
+        if (gapEnd > gapStart) segs.push({ type: 'gap', start: gapStart, end: gapEnd });
+    } else {
+        if (gapStart < LUNCH_START)
+            segs.push({ type: 'gap', start: gapStart, end: LUNCH_START });
+        segs.push({ type: 'lunch',
+                    start: Math.max(gapStart, LUNCH_START),
+                    end:   Math.min(gapEnd, LUNCH_END) });
+        if (gapEnd > LUNCH_END)
+            segs.push({ type: 'gap', start: LUNCH_END, end: gapEnd });
+    }
+}
+
+// ── Gap collapse toggle ───────────────────────────────────────────
+function toggleGapBody() {
+    const body   = document.getElementById('gapBody');
+    const arrow  = document.getElementById('gapToggleArrow');
+    const label  = document.getElementById('gapToggleText');
+    const open   = body.style.display === 'none' || body.style.display === '';
+    body.style.display  = open ? 'block' : 'none';
+    arrow.classList.toggle('flipped', open);
+    label.textContent   = open ? 'Hide breakdown' : 'Show breakdown';
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+loadLifetime();
+loadOrders();
+setFilter('all');  // default to All Time; charts load as part of setFilter
+</script>
+</body>
+</html>

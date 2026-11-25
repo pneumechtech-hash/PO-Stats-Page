@@ -1,0 +1,12 @@
+# Only app.py, db.py, ingest.py, requirements.txt and templates/index.html are needed
+venv/
+__pycache__/
+.git/
+.claude/
+import/
+*.db
+*.db-*
+*.json
+*.bak
+_*.py
+templates/*.pre-redesign.html

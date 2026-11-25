@@ -1,0 +1,24 @@
+# Paste this into a Dockge stack. GitHub builds the image on every push to
+# main (see .github/workflows/docker-image.yml); Dockge's Update button pulls
+# the newest one and restarts the container.
+services:
+  po-stats:
+    image: ghcr.io/pneumechtech-hash/po-stats-page:latest
+    container_name: po-stats
+    restart: unless-stopped
+    ports:
+      - "5000:5000"            # host:container — change the left side to use another port
+    environment:
+      # Your timezone. Day boundaries and the 07:30–16:00 work window use it.
+      TZ: America/Toronto
+    volumes:
+      # Each line is  <folder on the server>:<folder inside the container>
+      # Change only the LEFT side, to the full path of the folder on the server
+      # that holds the po-tracker-YYYY-MM-DD.json exports (the folder Syncthing
+      # syncs into). Keep ":/import:ro" as is: /import is where the app looks.
+      - /srv/docker/syncthing/data/POBackups:/import:ro
+      # The stats database (rebuilt from the exports if you ever delete it).
+      - po-stats-data:/data
+
+volumes:
+  po-stats-data:

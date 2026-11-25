@@ -1,0 +1,17 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Data stays out of git: the stats database and the app's exports
+# (the exports reach the server through Syncthing)
+*.db
+*.db-*
+po-tracker-*.json
+po-tracker-*.json.bak
+import/
+
+# Local only
+.claude/settings.local.json
+_*.py
+templates/*.pre-redesign.html

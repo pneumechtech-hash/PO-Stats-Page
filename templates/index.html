@@ -4,504 +4,732 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PO Tracker Stats</title>
+    <script>
+        // Apply the saved theme before first paint so there's no flash
+        try { const t = localStorage.getItem('po-stats-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
+        /* ── Theme ─────────────────────────────────────────────────── */
+        :root {
+            --bg: #161c28;
+            --chrome: #1b2231;
+            --surface: #1f2738;
+            --surface-2: #273146;
+            --surface-hover: #252e42;
+            --inset: #1a2131;
+            --border: #2c374c;
+            --border-strong: #3a475f;
+            --grid: rgba(255, 255, 255, 0.06);
+            --text: #e6eaf2;
+            --text-dim: #9aa6ba;
+            --text-muted: #6b778d;
+            --primary: #3b82f6;
+            --primary-hover: #2f6fe4;
+            --lunch: #4b5568;
+
+            --blue-soft: rgba(59, 130, 246, 0.15);    --blue-text: #60a5fa;
+            --green-soft: rgba(16, 185, 129, 0.15);   --green-text: #34d399;
+            --amber-soft: rgba(245, 158, 11, 0.15);   --amber-text: #fbbf24;
+            --red-soft: rgba(239, 68, 68, 0.15);      --red-text: #f87171;
+            --purple-soft: rgba(139, 92, 246, 0.17);  --purple-text: #a78bfa;
+            --cyan-soft: rgba(6, 182, 212, 0.15);     --cyan-text: #22d3ee;
+            --amber-border: rgba(245, 158, 11, 0.35);
+
+            --hm-0: #273146; --hm-1: #0e4430; --hm-2: #11694a; --hm-3: #10a06a; --hm-4: #34d399;
+
+            --shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+            --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.45);
+            --radius: 12px;
+            color-scheme: dark;
+        }
+        [data-theme="light"] {
+            --bg: #f3f5f9;
+            --chrome: #ffffff;
+            --surface: #ffffff;
+            --surface-2: #eef2f7;
+            --surface-hover: #f6f8fb;
+            --inset: #f8fafc;
+            --border: #e2e7ef;
+            --border-strong: #cdd5e1;
+            --grid: rgba(15, 23, 42, 0.07);
+            --text: #1b2332;
+            --text-dim: #5b677a;
+            --text-muted: #8a95a8;
+            --lunch: #cbd5e1;
+
+            --blue-soft: rgba(59, 130, 246, 0.11);    --blue-text: #1d4ed8;
+            --green-soft: rgba(16, 185, 129, 0.13);   --green-text: #047857;
+            --amber-soft: rgba(245, 158, 11, 0.15);   --amber-text: #b45309;
+            --red-soft: rgba(239, 68, 68, 0.11);      --red-text: #b91c1c;
+            --purple-soft: rgba(139, 92, 246, 0.12);  --purple-text: #6d28d9;
+            --cyan-soft: rgba(6, 182, 212, 0.12);     --cyan-text: #0e7490;
+            --amber-border: rgba(245, 158, 11, 0.45);
+
+            --hm-0: #e8edf3; --hm-1: #c6f1dc; --hm-2: #7fd8ad; --hm-3: #2fb57a; --hm-4: #0f7b52;
+
+            --shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+            --shadow-lg: 0 20px 50px rgba(16, 24, 40, 0.18);
+            color-scheme: light;
+        }
+
+        /* ── Base ──────────────────────────────────────────────────── */
         * { box-sizing: border-box; margin: 0; padding: 0; }
-
+        html { scroll-behavior: smooth; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f0f2f5;
-            color: #1f2937;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
         }
+        a { color: inherit; }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; border: 2px solid var(--bg); }
+        ::-webkit-scrollbar-track { background: transparent; }
 
-        .container { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
-
-        /* ── Header ── */
-        .header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-            gap: 12px;
+        .ic {
+            width: 18px; height: 18px; flex-shrink: 0;
+            fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
         }
-        .header h1 { font-size: 1.6rem; font-weight: 700; }
-        .header-sub { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+        .muted { color: var(--text-muted); font-size: 0.8rem; }
+        .c-blue { color: var(--blue-text); }   .c-green { color: var(--green-text); }
+        .c-amber { color: var(--amber-text); } .c-red { color: var(--red-text); }
+        .c-purple { color: var(--purple-text); } .c-cyan { color: var(--cyan-text); }
 
-        .import-area { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        /* ── Top bar ───────────────────────────────────────────────── */
+        .topbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px; z-index: 60;
+            display: flex; align-items: center; gap: 12px; padding: 0 20px;
+            background: var(--chrome); border-bottom: 1px solid var(--border);
+        }
+        .brand {
+            width: 208px; display: flex; align-items: center; gap: 10px;
+            font-size: 1.12rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text); text-decoration: none;
+        }
+        .brand-mark {
+            width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+            background: var(--primary); color: #fff;
+        }
+        .brand-mark .ic { width: 18px; height: 18px; }
+        .brand b { color: var(--blue-text); font-weight: 700; }
+        .topbar-spacer { flex: 1; }
+        .range-chip {
+            display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px;
+            border: 1px solid var(--border); border-radius: 9px; background: var(--surface);
+            color: var(--text-dim); font-size: 0.8rem; font-weight: 500; white-space: nowrap;
+        }
+        .range-chip .ic { width: 16px; height: 16px; }
+        .icon-btn {
+            width: 38px; height: 38px; display: grid; place-items: center; flex-shrink: 0;
+            border-radius: 9px; border: 1px solid transparent; background: transparent;
+            color: var(--text-dim); cursor: pointer; transition: background 0.15s, color 0.15s;
+        }
+        .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+        .menu-btn { display: none; }
 
-        /* ── Buttons ── */
+        /* ── Sidebar ───────────────────────────────────────────────── */
+        .sidebar {
+            position: fixed; top: 60px; bottom: 0; left: 0; width: 240px; z-index: 50;
+            display: flex; flex-direction: column; padding: 22px 14px 18px; overflow-y: auto;
+            background: var(--chrome); border-right: 1px solid var(--border);
+            transition: transform 0.2s ease;
+        }
+        .nav-label {
+            font-size: 0.68rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+            color: var(--text-muted); padding: 0 12px 10px;
+        }
+        .nav { display: flex; flex-direction: column; gap: 2px; }
+        .nav-link {
+            display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 9px;
+            color: var(--text-dim); text-decoration: none; font-weight: 500; font-size: 0.9rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .nav-link:hover { background: var(--surface-2); color: var(--text); }
+        .nav-link.active { background: var(--blue-soft); color: var(--blue-text); }
+        .sidebar-foot {
+            margin-top: auto; padding: 14px 12px 0; border-top: 1px solid var(--border);
+            font-size: 0.75rem; line-height: 1.5; color: var(--text-muted);
+        }
+        .sidebar-foot code { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; color: var(--text-dim); }
+        .import-status { margin-top: 8px; color: var(--text-dim); overflow-wrap: anywhere; }
+        .import-status.bad { color: var(--red-text); }
+        .backdrop { display: none; }
+
+        /* ── Main ──────────────────────────────────────────────────── */
+        .main { margin-left: 240px; padding: 60px 28px 48px; }
+        .page-header {
+            position: sticky; top: 60px; z-index: 30;
+            display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+            padding: 24px 0 18px; margin-bottom: 6px; background: var(--bg);
+        }
+        .page-header h1 { font-size: 1.55rem; font-weight: 700; letter-spacing: -0.015em; }
+        .page-sub { color: var(--text-dim); margin-top: 4px; font-size: 0.9rem; }
+        .page-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+        .eyebrow {
+            display: flex; align-items: center; gap: 8px; margin: 8px 0 12px;
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted);
+        }
+        .eyebrow span { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 0.8rem; color: var(--text-dim); }
+        .eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--border); margin-left: 6px; }
+        section, [data-spy] { scroll-margin-top: 150px; }
+
+        /* ── Controls ──────────────────────────────────────────────── */
         .btn {
-            padding: 9px 20px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: background 0.15s, opacity 0.15s;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            height: 38px; padding: 0 16px; border-radius: 9px; border: 1px solid transparent;
+            font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
         }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-primary:hover { background: #1d4ed8; }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn .ic { width: 16px; height: 16px; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-primary:disabled { opacity: 0.65; cursor: progress; }
+        .btn-ghost { background: transparent; border-color: var(--border-strong); color: var(--text); height: 32px; padding: 0 12px; font-size: 0.8rem; }
+        .btn-ghost:hover { background: var(--surface-2); }
+        .spin { animation: spin 0.9s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .import-msg { font-size: 0.78rem; color: #6b7280; text-align: right; }
-        .import-msg.ok { color: #16a34a; }
-        .import-msg.err { color: #dc2626; }
-
-        /* ── Summary cards ── */
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
+        .segmented {
+            display: inline-flex; gap: 2px; padding: 3px; max-width: 100%; overflow-x: auto;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
         }
-        @media (max-width: 700px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+        .btn-quick {
+            height: 30px; padding: 0 12px; border: none; border-radius: 7px; background: transparent;
+            color: var(--text-dim); font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+            transition: background 0.15s, color 0.15s;
+        }
+        .btn-quick:hover { background: var(--surface-2); color: var(--text); }
+        .btn-quick.active { background: var(--primary); color: #fff; }
+
+        .date-range {
+            display: inline-flex; align-items: center; gap: 4px; height: 38px; padding: 0 6px 0 10px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted);
+        }
+        .date-range .ic { width: 16px; height: 16px; }
+        input[type="date"] {
+            background: transparent; border: none; border-radius: 6px; padding: 4px;
+            color: var(--text); font: inherit; font-size: 0.82rem;
+        }
+        input[type="date"]:focus { outline: 2px solid var(--primary); outline-offset: 0; }
+
+        /* ── Cards & grids ─────────────────────────────────────────── */
+        .grid { display: grid; gap: 20px; margin-bottom: 20px; }
+        .grid-kpi { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .grid-2-1 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+        .grid-3   { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
         .card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px; min-width: 0;
         }
-        .card-label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #9ca3af;
-            margin-bottom: 8px;
-            font-weight: 600;
+        .grid > .card { margin-bottom: 0; }
+        .card-head {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+            margin-bottom: 16px;
         }
-        .card-value { font-size: 2rem; font-weight: 700; line-height: 1; }
-        .card-sub { font-size: 0.78rem; color: #6b7280; margin-top: 5px; }
+        .card-title { display: flex; align-items: center; gap: 10px; font-size: 0.98rem; font-weight: 600; }
+        .card-title .ic { width: 18px; height: 18px; }
+        .chart-box { position: relative; height: 260px; }
+        .chart-box.tall { height: 300px; }
+        .empty-note { color: var(--text-muted); font-size: 0.86rem; padding: 28px 0; text-align: center; }
+        .annotation { margin-top: 12px; font-size: 0.8rem; color: var(--text-dim); text-align: center; }
 
-        .val-blue   { color: #2563eb; }
-        .val-amber  { color: #d97706; }
-        .val-green  { color: #16a34a; }
-        .val-purple { color: #7c3aed; }
+        /* KPI cards */
+        .kpi { display: flex; flex-direction: column; padding: 18px 20px 14px; }
+        .kpi-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .kpi-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-dim); padding-top: 2px; }
+        .kpi-icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex-shrink: 0; }
+        .kpi-icon .ic { width: 17px; height: 17px; }
+        .kpi-icon.blue   { background: var(--blue-soft);   color: var(--blue-text); }
+        .kpi-icon.green  { background: var(--green-soft);  color: var(--green-text); }
+        .kpi-icon.amber  { background: var(--amber-soft);  color: var(--amber-text); }
+        .kpi-icon.purple { background: var(--purple-soft); color: var(--purple-text); }
+        .kpi-value { font-size: 2rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; margin-top: 4px; font-variant-numeric: tabular-nums; }
+        .kpi-sub { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; min-height: 1.2em; }
+        .kpi-spark { height: 46px; margin-top: 12px; position: relative; }
 
-        /* ── Charts ── */
-        .charts-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 24px;
+        /* Legend */
+        .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.76rem; color: var(--text-dim); }
+        .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+        /* Gauge */
+        .gauge-container { display: flex; align-items: center; justify-content: center; min-height: 260px; }
+        .gauge-container canvas { display: block; width: 100%; max-width: 400px; height: auto; }
+
+        /* Badges, tags, pills */
+        .tag {
+            display: inline-block; padding: 2px 8px; margin: 1px 4px 1px 0; border-radius: 6px;
+            background: var(--blue-soft); color: var(--blue-text); font-size: 0.72rem; font-weight: 600; white-space: nowrap;
         }
-        @media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } }
-
-        .chart-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .chart-card.full-width { margin-bottom: 24px; }
-        .section-title { font-size: 0.95rem; font-weight: 600; color: #374151; margin-bottom: 16px; }
-
-        /* ── Filter bar ── */
-        .filter-bar {
-            background: white;
-            border-radius: 12px;
-            padding: 14px 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+            font-size: 0.72rem; font-weight: 600; white-space: nowrap;
         }
-        .filter-label { font-size: 0.78rem; font-weight: 700; color: #374151; white-space: nowrap; letter-spacing: 0.04em; text-transform: uppercase; }
-        .filter-inputs { display: flex; align-items: center; gap: 8px; }
-        .filter-sep { color: #9ca3af; }
+        .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .badge-active   { background: var(--amber-soft); color: var(--amber-text); }
+        .badge-finished { background: var(--green-soft); color: var(--green-text); }
+        .pill { font-size: 0.72rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+        .pill-late     { background: var(--amber-soft); color: var(--amber-text); }
+        .pill-overtime { background: var(--green-soft); color: var(--green-text); }
 
-        /* ── Gauge ── */
-        .gauge-container { position: relative; width: 100%; }
-        .gauge-container canvas { display: block; width: 100%; height: auto; }
-        .btn-quick.active { background: #2563eb; color: white; border-color: #2563eb; }
-
-        /* ── Full-width day chart ── */
-        .day-chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-        .day-chart-header .section-title { margin-bottom: 0; }
-        #dayChartLegend { display: flex; gap: 14px; flex-wrap: wrap; }
-        .day-chart-annotation { margin-top: 10px; font-size: 0.8rem; color: #6b7280; text-align: center; }
-
-        /* ── Collapsible gap section ── */
-        .gap-summary-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6; flex-wrap: wrap; gap: 10px; }
-        .gap-summary-pills { display: flex; gap: 16px; font-size: 0.85rem; color: #374151; flex-wrap: wrap; align-items: center; }
-        .collapse-toggle { background: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 0.78rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 6px; transition: background 0.1s; white-space: nowrap; }
-        .collapse-toggle:hover { background: #f3f4f6; }
-        #gapToggleArrow { display: inline-block; transition: transform 0.25s; }
-        #gapToggleArrow.flipped { transform: rotate(180deg); }
-        .gap-body { margin-top: 16px; }
-
-        /* ── Gap analysis ── */
-        .gap-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            margin-bottom: 24px;
+        /* ── Idle orders ───────────────────────────────────────────── */
+        .attention { border-color: var(--amber-border); }
+        .idle-row {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            padding: 10px 12px; margin: 0 -12px; border-radius: 8px; font-size: 0.84rem; cursor: pointer;
         }
-        .gap-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-        .gap-controls .section-title { margin-bottom: 0; margin-right: 4px; }
+        .idle-row + .idle-row { border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+        .idle-row:hover { background: var(--surface-hover); }
+        .idle-po { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-weight: 700; color: var(--amber-text); min-width: 88px; }
+        .idle-badge { font-size: 0.72rem; padding: 2px 9px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+        .idle-badge-warn  { background: var(--amber-soft); color: var(--amber-text); }
+        .idle-badge-never { background: var(--red-soft); color: var(--red-text); }
+        .idle-notes { color: var(--text-dim); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .idle-time { font-size: 0.76rem; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
 
-        input[type="date"] {
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 7px 10px;
-            font-size: 0.875rem;
-            color: #1f2937;
-            background: #f9fafb;
-        }
-        input[type="date"]:focus { outline: 2px solid #2563eb; border-color: transparent; }
+        /* ── Heatmap ───────────────────────────────────────────────── */
+        .hm-scroll { overflow-x: auto; padding-bottom: 4px; }
+        .hm { width: 14px; height: 14px; border-radius: 3px; }
+        .hm-0 { background: var(--hm-0); } .hm-1 { background: var(--hm-1); } .hm-2 { background: var(--hm-2); }
+        .hm-3 { background: var(--hm-3); } .hm-4 { background: var(--hm-4); }
+        .hm-axis { font-size: 0.66rem; color: var(--text-muted); }
 
-        .date-label { font-size: 0.78rem; color: #6b7280; font-weight: 500; }
+        /* ── Gap analysis ──────────────────────────────────────────── */
+        .mini-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; flex: 1; }
+        .mini { background: var(--inset); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+        .mini-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+        .mini-value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+        .gap-summary-row { display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap; }
+        .collapse-toggle { align-self: center; }
+        .collapse-toggle .ic { width: 15px; height: 15px; transition: transform 0.25s; }
+        .collapse-toggle.open .ic { transform: rotate(180deg); }
+        .gap-body { margin-top: 18px; }
+        .gap-body > .legend { margin-bottom: 14px; }
 
-        .quick-btns { display: flex; gap: 5px; margin-left: 4px; }
-        .btn-quick {
-            padding: 6px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            background: white;
-            cursor: pointer;
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: #374151;
-            transition: background 0.1s;
-        }
-        .btn-quick:hover { background: #f3f4f6; border-color: #9ca3af; }
-
-        /* Range summary bar */
-        .range-summary-bar {
-            display: flex;
-            gap: 20px;
-            padding: 10px 14px;
-            background: #f8fafc;
-            border-radius: 8px;
-            margin-bottom: 14px;
-            font-size: 0.85rem;
-            color: #374151;
-            flex-wrap: wrap;
-            border: 1px solid #e5e7eb;
-        }
-
-        /* Timeline bar */
-        .timeline {
-            display: flex;
-            height: 36px;
-            border-radius: 6px;
-            overflow: hidden;
-            background: #e5e7eb;
-        }
-        .seg {
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.6rem;
-            font-weight: 700;
-            color: rgba(255,255,255,0.92);
-            overflow: hidden;
-            white-space: nowrap;
-            min-width: 0;
-        }
-        .seg-work     { background: #16a34a; }
-        .seg-gap      { background: #ef4444; }
-        .seg-lunch    { background: #9ca3af; }
-        .seg-overtime { background: #4ade80; }
-
-        .timeline-axis {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.68rem;
-            color: #9ca3af;
-            margin-top: 3px;
-            margin-bottom: 8px;
-            padding: 0 2px;
-        }
-
-        /* Day blocks */
         .day-blocks { display: flex; flex-direction: column; gap: 12px; }
-        .day-block {
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 12px 14px;
-        }
-        .day-block.day-empty {
-            border-style: dashed;
-            background: #fafafa;
-            padding: 10px 14px;
-        }
-        .day-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-        }
-        .day-label { font-weight: 700; font-size: 0.88rem; min-width: 115px; }
+        .day-block { background: var(--inset); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+        .day-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .day-label { font-weight: 700; font-size: 0.9rem; min-width: 118px; }
+        .day-worked { font-size: 0.8rem; color: var(--text-dim); margin-left: 4px; }
+        .day-worked strong { color: var(--text); }
+        .gap-badge { margin-left: auto; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+        .gap-badge-ok   { background: var(--green-soft); color: var(--green-text); }
+        .gap-badge-warn { background: var(--amber-soft); color: var(--amber-text); }
+        .gap-badge-bad  { background: var(--red-soft);   color: var(--red-text); }
 
-        .pill {
-            font-size: 0.7rem;
-            font-weight: 600;
-            padding: 2px 9px;
-            border-radius: 9999px;
+        .timeline { display: flex; height: 30px; border-radius: 7px; overflow: hidden; background: var(--surface-2); }
+        .seg {
+            height: 100%; min-width: 0; overflow: hidden; white-space: nowrap;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.62rem; font-weight: 700; color: rgba(255, 255, 255, 0.95);
         }
-        .pill-late     { background: #fef3c7; color: #92400e; }
-        .pill-overtime { background: #dcfce7; color: #166534; }
-
-        .gap-badge {
-            margin-left: auto;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 3px 10px;
-            border-radius: 9999px;
+        .seg-work     { background: #10b981; }
+        .seg-gap      { background: #ef4444; }
+        .seg-lunch    { background: var(--lunch); color: var(--text); }
+        .seg-overtime { background: #6ee7b7; color: #064e3b; }
+        .timeline-axis {
+            display: flex; justify-content: space-between; padding: 0 2px; margin: 4px 0 8px;
+            font-size: 0.68rem; color: var(--text-muted); font-variant-numeric: tabular-nums;
         }
-        .gap-badge-ok   { background: #d1fae5; color: #065f46; }
-        .gap-badge-warn { background: #fef3c7; color: #92400e; }
-        .gap-badge-bad  { background: #fee2e2; color: #991b1b; }
 
-        /* Gap list */
         .gap-list { display: flex; flex-direction: column; gap: 5px; }
         .gap-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 8px 12px;
-            background: #fef2f2;
-            border-radius: 6px;
-            border-left: 3px solid #ef4444;
+            display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+            background: var(--red-soft); border-left: 3px solid #ef4444; border-radius: 6px;
         }
         .gap-item-time { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-        .gap-item-dur  { font-size: 0.75rem; color: #ef4444; font-weight: 600; }
-        .no-gaps {
-            padding: 8px 12px;
-            background: #f0fdf4;
-            border-radius: 6px;
-            color: #16a34a;
-            font-size: 0.82rem;
-            font-weight: 600;
-        }
-        .gap-placeholder { color: #9ca3af; font-size: 0.875rem; }
+        .gap-item-dur  { font-size: 0.76rem; font-weight: 600; color: var(--red-text); }
+        .no-gaps { padding: 8px 12px; border-radius: 6px; background: var(--green-soft); color: var(--green-text); font-size: 0.82rem; font-weight: 600; }
 
-        /* ── Legend ── */
-        .legend { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
-        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: #6b7280; }
-        .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
-
-        /* ── Patterns ── */
-        .patterns-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 28px;
+        .swimlane-section { margin: 12px 0 10px; }
+        .swimlane-section-label, .patterns-section-label {
+            font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+            color: var(--text-muted); margin-bottom: 8px;
         }
-        @media (max-width: 700px) { .patterns-grid { grid-template-columns: 1fr; } }
-
-        .patterns-section-label {
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #9ca3af;
-            margin-bottom: 12px;
+        .swimlane-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .swimlane-label {
+            width: 130px; flex-shrink: 0; text-align: right; font-size: 0.73rem; color: var(--text-dim);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .slot-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 7px;
-            font-size: 0.8rem;
-        }
-        .slot-label { width: 110px; flex-shrink: 0; color: #374151; font-variant-numeric: tabular-nums; }
-        .slot-bar-track { flex: 1; height: 10px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
-        .slot-bar-fill  { height: 100%; border-radius: 4px; transition: width 0.4s; }
-        .slot-stat { width: 72px; flex-shrink: 0; text-align: right; color: #6b7280; }
+        .swimlane-track { flex: 1; height: 16px; position: relative; background: var(--surface-2); border-radius: 4px; }
+        .swimlane-seg { position: absolute; height: 100%; min-width: 2px; border-radius: 3px; }
 
-        .dow-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 7px;
-            font-size: 0.8rem;
-        }
-        .dow-label { width: 36px; flex-shrink: 0; font-weight: 600; color: #374151; }
-        .dow-bar-track { flex: 1; height: 10px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
-        .dow-bar-fill  { height: 100%; border-radius: 4px; background: #ef4444; transition: width 0.4s; }
-        .dow-stat { width: 72px; flex-shrink: 0; text-align: right; color: #6b7280; }
+        /* ── Patterns ──────────────────────────────────────────────── */
+        .patterns-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        .patterns-section-label { margin-bottom: 12px; }
+        .slot-row, .dow-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.8rem; }
+        .slot-label { width: 112px; flex-shrink: 0; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+        .dow-label { width: 38px; flex-shrink: 0; font-weight: 600; color: var(--text-dim); }
+        .bar-track { flex: 1; height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+        .slot-stat, .dow-stat { width: 80px; flex-shrink: 0; text-align: right; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
-        .patterns-empty { color: #9ca3af; font-size: 0.875rem; }
-
-        /* ── Orders table ── */
-        .table-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        /* ── Orders table ──────────────────────────────────────────── */
+        .table-wrap { overflow-x: auto; margin: 0 -20px -20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
         th {
-            text-align: left;
-            padding: 8px 12px;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #9ca3af;
-            font-weight: 600;
-            border-bottom: 1px solid #e5e7eb;
-            white-space: nowrap;
+            text-align: left; padding: 12px 20px; white-space: nowrap;
+            font-size: 0.8rem; font-weight: 600; color: var(--text);
+            border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
         }
-        td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
-        tr:last-child td { border-bottom: none; }
-        tbody tr:hover td { background: #f9fafb; }
+        td { padding: 13px 20px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr.clickable { cursor: pointer; }
+        tbody tr.clickable:hover td { background: var(--surface-hover); }
+        .num { text-align: center; font-variant-numeric: tabular-nums; }
+        .po-num { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-weight: 600; color: var(--blue-text); }
+        .cell-dim { color: var(--text-dim); font-size: 0.82rem; white-space: nowrap; }
 
-        .po-num { font-family: 'Courier New', monospace; font-weight: 600; font-size: 0.85rem; }
-
-        .tag {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 9999px;
-            background: #dbeafe;
-            color: #1e40af;
-            font-size: 0.68rem;
-            font-weight: 600;
-            margin: 1px 2px 1px 0;
-            white-space: nowrap;
+        /* ── Modal ─────────────────────────────────────────────────── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; z-index: 1000; padding: 20px;
+            align-items: center; justify-content: center;
+            background: rgba(3, 7, 18, 0.6); backdrop-filter: blur(3px);
         }
-
-        .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 9999px;
-            font-size: 0.7rem;
-            font-weight: 700;
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            position: relative; width: 100%; max-width: 640px; max-height: 85vh; overflow-y: auto;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+            padding: 24px; box-shadow: var(--shadow-lg);
         }
-        .badge-active   { background: #fef3c7; color: #92400e; }
-        .badge-finished { background: #d1fae5; color: #065f46; }
+        .modal-close { position: absolute; top: 14px; right: 14px; }
+        .modal-po-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; padding-right: 40px; }
+        .modal-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; font-size: 0.8rem; color: var(--text-dim); }
+        .modal-day-group { margin-bottom: 16px; }
+        .modal-day-label {
+            font-size: 0.76rem; font-weight: 700; color: var(--text-dim);
+            padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--border);
+        }
+        .session-row { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 6px; font-size: 0.84rem; }
+        .session-row:nth-child(odd) { background: var(--inset); }
+        .session-time { min-width: 110px; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+        .session-dur { min-width: 60px; font-weight: 600; }
+        .cnf-yes { font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--green-soft); color: var(--green-text); }
+        .cnf-no { font-size: 0.72rem; color: var(--text-muted); }
+        .modal-empty { color: var(--text-muted); font-size: 0.875rem; padding: 12px 0; }
 
-        .empty-state { color: #9ca3af; text-align: center; padding: 28px; font-size: 0.875rem; }
+        /* ── Toast ─────────────────────────────────────────────────── */
+        .toast {
+            position: fixed; right: 24px; bottom: 24px; z-index: 1100; max-width: 380px;
+            display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+            background: var(--surface); border: 1px solid var(--border-strong); border-left: 4px solid var(--primary);
+            border-radius: 10px; box-shadow: var(--shadow-lg); font-size: 0.86rem;
+            opacity: 0; transform: translateY(16px); pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+        }
+        .toast.show { opacity: 1; transform: none; pointer-events: auto; }
+        .toast span { min-width: 0; overflow-wrap: anywhere; }
+        .toast.ok  { border-left-color: #10b981; }
+        .toast.err { border-left-color: #ef4444; }
+
+        /* ── Responsive ────────────────────────────────────────────── */
+        @media (max-width: 1280px) {
+            .grid-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .grid-3 > :last-child { grid-column: 1 / -1; }
+            .mini-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 1000px) {
+            .menu-btn { display: grid; }
+            .brand { width: auto; }
+            .sidebar { transform: translateX(-100%); box-shadow: var(--shadow-lg); }
+            body.nav-open .sidebar { transform: none; }
+            body.nav-open .backdrop { display: block; position: fixed; inset: 60px 0 0 0; z-index: 45; background: rgba(3, 7, 18, 0.5); }
+            .main { margin-left: 0; }
+        }
+        @media (max-width: 860px) {
+            .main { padding: 60px 16px 40px; }
+            .page-header { position: static; }
+            section, [data-spy] { scroll-margin-top: 76px; }
+            .grid-2-1, .grid-3, .patterns-grid { grid-template-columns: 1fr; }
+            .grid-3 > :last-child { grid-column: auto; }
+            .range-chip { display: none; }
+        }
+        @media (max-width: 560px) {
+            .grid-kpi, .mini-stats { grid-template-columns: 1fr; }
+            .brand > span:last-child { display: none; }
+            .page-actions, .segmented, .date-range { width: 100%; }
+            .segmented { flex-wrap: wrap; }
+            .btn-quick { flex: 1 1 auto; }
+            .date-range input { flex: 1; min-width: 0; }
+            .toast { left: 16px; right: 16px; bottom: 16px; }
+        }
     </style>
 </head>
 <body>
-<div class="container">
 
-    <!-- Header -->
-    <div class="header">
+<!-- Icon sprite (Lucide-style line icons) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+        <symbol id="i-timer" viewBox="0 0 24 24"><line x1="10" y1="2" x2="14" y2="2"/><line x1="12" y1="14" x2="15" y2="11"/><circle cx="12" cy="14" r="8"/></symbol>
+        <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+        <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></symbol>
+        <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+        <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></symbol>
+        <symbol id="i-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+        <symbol id="i-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+        <symbol id="i-package" viewBox="0 0 24 24"><path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
+        <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+        <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></symbol>
+        <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+        <symbol id="i-bars" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+        <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+    </defs>
+</svg>
+
+<!-- Top bar -->
+<header class="topbar">
+    <button class="icon-btn menu-btn" onclick="toggleNav()" aria-label="Menu"><svg class="ic"><use href="#i-menu"/></svg></button>
+    <a class="brand" href="#top">
+        <span class="brand-mark"><svg class="ic"><use href="#i-timer"/></svg></span>
+        <span>PO Tracker <b>Stats</b></span>
+    </a>
+    <div class="topbar-spacer"></div>
+    <div class="range-chip" id="dataRange" title="Range of imported session data">
+        <svg class="ic"><use href="#i-calendar"/></svg><span id="dataRangeText">No data yet</span>
+    </div>
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle light/dark theme" title="Toggle theme">
+        <svg class="ic"><use id="themeIcon" href="#i-sun"/></svg>
+    </button>
+</header>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="nav-label">Navigation</div>
+    <nav class="nav">
+        <a class="nav-link active" href="#sec-overview"><svg class="ic"><use href="#i-dashboard"/></svg>Overview</a>
+        <a class="nav-link" href="#sec-trends"><svg class="ic"><use href="#i-trend"/></svg>Trends</a>
+        <a class="nav-link" href="#sec-activity"><svg class="ic"><use href="#i-calendar"/></svg>Activity</a>
+        <a class="nav-link" href="#sec-gaps"><svg class="ic"><use href="#i-hourglass"/></svg>Inactive Gaps</a>
+        <a class="nav-link" href="#sec-patterns"><svg class="ic"><use href="#i-activity"/></svg>Patterns</a>
+        <a class="nav-link" href="#sec-orders"><svg class="ic"><use href="#i-list"/></svg>Orders</a>
+    </nav>
+    <div class="sidebar-foot">
+        Imports <code>po-tracker-*.json</code> exports from the import folder. New and changed files are picked up automatically.
+        <div class="import-status" id="importStatus">Checking the import folder…</div>
+    </div>
+</aside>
+<div class="backdrop" onclick="toggleNav(false)"></div>
+
+<main class="main" id="top">
+
+    <!-- Page header + global period filter (drives everything except Lifetime) -->
+    <div class="page-header">
         <div>
-            <h1>PO Tracker Stats</h1>
-            <div class="header-sub">Purchase order time tracking &amp; analytics</div>
+            <h1>Dashboard</h1>
+            <p class="page-sub">Purchase order time tracking &amp; analytics</p>
         </div>
-        <div class="import-area">
-            <button class="btn btn-primary" id="importBtn" onclick="importFiles()">Import JSON Files</button>
-            <div class="import-msg" id="importMsg"></div>
-        </div>
-    </div>
-
-    <!-- Lifetime summary cards (always global, unaffected by date filter) -->
-    <div class="summary-grid">
-        <div class="card">
-            <div class="card-label">Total Orders</div>
-            <div class="card-value val-blue" id="ltOrders">—</div>
-            <div class="card-sub" id="ltOrdersSub"></div>
-        </div>
-        <div class="card">
-            <div class="card-label">Time Tracked</div>
-            <div class="card-value val-green" id="ltTracked">—</div>
-            <div class="card-sub" id="ltTrackedSub"></div>
-        </div>
-        <div class="card">
-            <div class="card-label">Inactive Time</div>
-            <div class="card-value val-amber" id="ltInactive">—</div>
-            <div class="card-sub" id="ltInactiveSub"></div>
-        </div>
-        <div class="card">
-            <div class="card-label">Working Days</div>
-            <div class="card-value val-purple" id="ltDays">—</div>
-            <div class="card-sub" id="ltDaysSub"></div>
+        <div class="page-actions">
+            <div class="segmented" role="group" aria-label="Period">
+                <button class="btn-quick filter-preset" data-preset="today"    onclick="setFilter('today')">Today</button>
+                <button class="btn-quick filter-preset" data-preset="week"     onclick="setFilter('week')">This Week</button>
+                <button class="btn-quick filter-preset" data-preset="lastWeek" onclick="setFilter('lastWeek')">Last Week</button>
+                <button class="btn-quick filter-preset" data-preset="month"    onclick="setFilter('month')">This Month</button>
+                <button class="btn-quick filter-preset active" data-preset="all" onclick="setFilter('all')">All Time</button>
+            </div>
+            <div class="date-range">
+                <svg class="ic"><use href="#i-calendar"/></svg>
+                <input type="date" id="filterFrom" aria-label="From" onchange="clearPreset(); applyFilter()">
+                <span>–</span>
+                <input type="date" id="filterTo" aria-label="To" onchange="clearPreset(); applyFilter()">
+            </div>
+            <button class="btn btn-primary" id="importBtn" onclick="importFiles()">
+                <svg class="ic" id="importIcon"><use href="#i-download"/></svg><span id="importLabel">Import JSON</span>
+            </button>
         </div>
     </div>
 
-    <!-- Global date filter — drives all charts below -->
-    <div class="filter-bar">
-        <span class="filter-label">Period</span>
-        <div class="filter-inputs">
-            <input type="date" id="filterFrom" onchange="clearPreset(); applyFilter()">
-            <span class="filter-sep">–</span>
-            <input type="date" id="filterTo" onchange="clearPreset(); applyFilter()">
-        </div>
-        <div class="quick-btns">
-            <button class="btn-quick filter-preset" data-preset="today"    onclick="setFilter('today')">Today</button>
-            <button class="btn-quick filter-preset" data-preset="week"     onclick="setFilter('week')">This Week</button>
-            <button class="btn-quick filter-preset" data-preset="lastWeek" onclick="setFilter('lastWeek')">Last Week</button>
-            <button class="btn-quick filter-preset" data-preset="month"    onclick="setFilter('month')">This Month</button>
-            <button class="btn-quick filter-preset active" data-preset="all" onclick="setFilter('all')">All Time</button>
-        </div>
-    </div>
-
-    <!-- Charts: tag + gauge -->
-    <div class="charts-grid">
-        <div class="chart-card">
-            <div class="section-title">Time by Tag (hours)</div>
-            <canvas id="tagChart"></canvas>
-        </div>
-        <div class="chart-card">
-            <div class="section-title">Avg Hours / Day</div>
-            <div class="gauge-container">
-                <canvas id="gaugeChart"></canvas>
+    <!-- Lifetime (always global, unaffected by the period filter) -->
+    <div id="sec-overview" data-spy>
+        <div class="eyebrow">Lifetime <span>· all imported data</span></div>
+        <div class="grid grid-kpi">
+            <div class="card kpi">
+                <div class="kpi-head">
+                    <span class="kpi-label">Total Orders</span>
+                    <span class="kpi-icon blue"><svg class="ic"><use href="#i-package"/></svg></span>
+                </div>
+                <div class="kpi-value" id="ltOrders">—</div>
+                <div class="kpi-sub" id="ltOrdersSub"></div>
+                <div class="kpi-spark" title="Orders finished per week (last 12 weeks)"><canvas id="sparkOrders"></canvas></div>
+            </div>
+            <div class="card kpi">
+                <div class="kpi-head">
+                    <span class="kpi-label">Time Tracked</span>
+                    <span class="kpi-icon green"><svg class="ic"><use href="#i-clock"/></svg></span>
+                </div>
+                <div class="kpi-value" id="ltTracked">—</div>
+                <div class="kpi-sub" id="ltTrackedSub"></div>
+                <div class="kpi-spark" title="Hours per tracked day (last 20 days)"><canvas id="sparkTracked"></canvas></div>
+            </div>
+            <div class="card kpi">
+                <div class="kpi-head">
+                    <span class="kpi-label">Inactive Time</span>
+                    <span class="kpi-icon amber"><svg class="ic"><use href="#i-hourglass"/></svg></span>
+                </div>
+                <div class="kpi-value" id="ltInactive">—</div>
+                <div class="kpi-sub" id="ltInactiveSub"></div>
+                <div class="kpi-spark" title="Inactive minutes per tracked day (last 20 days)"><canvas id="sparkInactive"></canvas></div>
+            </div>
+            <div class="card kpi">
+                <div class="kpi-head">
+                    <span class="kpi-label">Working Days</span>
+                    <span class="kpi-icon purple"><svg class="ic"><use href="#i-calendar"/></svg></span>
+                </div>
+                <div class="kpi-value" id="ltDays">—</div>
+                <div class="kpi-sub" id="ltDaysSub"></div>
+                <div class="kpi-spark" title="Days tracked per week (last 12 weeks)"><canvas id="sparkDays"></canvas></div>
             </div>
         </div>
+
+        <!-- Idle order alert (always global — not date-filtered) -->
+        <section id="idleCard" class="card attention" style="display:none">
+            <div class="card-head">
+                <div class="card-title"><svg class="ic c-amber"><use href="#i-alert"/></svg>Idle Active Orders</div>
+                <span class="muted">Active orders with no session in the last <span id="idleThresholdLabel">7</span> days</span>
+            </div>
+            <div id="idleList"></div>
+        </section>
     </div>
 
-    <!-- Full-width time by day -->
-    <div class="chart-card full-width">
-        <div class="day-chart-header">
-            <div class="section-title">Time by Day (hours)</div>
-            <div id="dayChartLegend"></div>
+    <!-- Period-filtered sections -->
+    <div id="sec-trends" data-spy>
+        <div class="eyebrow">Selected period <span class="js-period">· All Time</span></div>
+        <div class="grid grid-2-1">
+            <section class="card">
+                <div class="card-head">
+                    <div class="card-title"><svg class="ic c-blue"><use href="#i-trend"/></svg>Time by Day</div>
+                    <div id="dayChartLegend" class="legend"></div>
+                </div>
+                <div class="chart-box tall"><canvas id="dayChart"></canvas></div>
+                <div id="dayChartEmpty" class="empty-note" style="display:none">No sessions in this period.</div>
+                <div id="dayChartAnnotation" class="annotation"></div>
+            </section>
+            <section class="card">
+                <div class="card-head">
+                    <div class="card-title"><svg class="ic c-green"><use href="#i-gauge"/></svg>Avg Hours / Day</div>
+                </div>
+                <div class="gauge-container"><canvas id="gaugeChart"></canvas></div>
+            </section>
         </div>
-        <canvas id="dayChart"></canvas>
-        <div id="dayChartAnnotation" class="day-chart-annotation"></div>
+
+        <div class="grid grid-3">
+            <section class="card">
+                <div class="card-head">
+                    <div class="card-title"><svg class="ic c-blue"><use href="#i-tag"/></svg>Time by Tag</div>
+                    <span class="muted">hours</span>
+                </div>
+                <div class="chart-box"><canvas id="tagChart"></canvas>
+                    <div id="tagEmpty" class="empty-note" style="display:none">No tagged time in this period.</div>
+                </div>
+            </section>
+            <section class="card">
+                <div class="card-head">
+                    <div class="card-title"><svg class="ic c-purple"><use href="#i-check"/></svg>Completion Velocity</div>
+                    <span class="muted">finished / week</span>
+                </div>
+                <div class="chart-box"><canvas id="velocityChart"></canvas>
+                    <div id="velocityEmpty" class="empty-note" style="display:none">No finished orders in this period.</div>
+                </div>
+            </section>
+            <section class="card">
+                <div class="card-head">
+                    <div class="card-title"><svg class="ic c-cyan"><use href="#i-bars"/></svg>Time per Order</div>
+                    <span class="muted">distribution</span>
+                </div>
+                <div class="chart-box"><canvas id="histogramChart"></canvas>
+                    <div id="histogramEmpty" class="empty-note" style="display:none">No order data.</div>
+                </div>
+            </section>
+        </div>
     </div>
+
+    <!-- Calendar heatmap -->
+    <section class="card" id="sec-activity" data-spy>
+        <div class="card-head">
+            <div class="card-title"><svg class="ic c-green"><use href="#i-calendar"/></svg>Activity Heatmap</div>
+        </div>
+        <div id="heatmapWrap"></div>
+    </section>
 
     <!-- Gap analysis (collapsible, driven by global date filter) -->
-    <div class="gap-card">
-        <div class="section-title">Inactive Gaps</div>
+    <section class="card" id="sec-gaps" data-spy>
+        <div class="card-head">
+            <div class="card-title"><svg class="ic c-red"><use href="#i-hourglass"/></svg>Inactive Gaps</div>
+            <span class="muted">work window 07:30–16:00, lunch excluded</span>
+        </div>
         <div id="gapSummaryRow" class="gap-summary-row" style="display:none">
-            <div class="gap-summary-pills" id="gapSummaryPills"></div>
-            <button class="collapse-toggle" onclick="toggleGapBody()">
-                <span id="gapToggleText">Show breakdown</span>
-                <span id="gapToggleArrow">▼</span>
+            <div class="mini-stats" id="gapSummaryPills"></div>
+            <button class="btn btn-ghost collapse-toggle" id="gapToggle" onclick="toggleGapBody()">
+                <span id="gapToggleText">Show breakdown</span><svg class="ic"><use href="#i-chevron"/></svg>
             </button>
         </div>
         <div class="gap-body" id="gapBody" style="display:none"></div>
-    </div>
+    </section>
 
     <!-- Inactive patterns -->
-    <div class="gap-card">
-        <div class="section-title">Inactive Patterns</div>
-        <div class="patterns-grid" id="patternsGrid">
-            <div class="patterns-empty">Loading…</div>
+    <section class="card" id="sec-patterns" data-spy>
+        <div class="card-head">
+            <div class="card-title"><svg class="ic c-amber"><use href="#i-activity"/></svg>Inactive Patterns</div>
         </div>
-    </div>
+        <div class="patterns-grid" id="patternsGrid">
+            <div class="empty-note">Loading…</div>
+        </div>
+    </section>
 
     <!-- Orders table -->
-    <div class="table-card">
-        <div class="section-title">All Orders</div>
+    <section class="card" id="sec-orders" data-spy>
+        <div class="card-head">
+            <div class="card-title"><svg class="ic c-blue"><use href="#i-list"/></svg><span id="ordersTitle">All Orders</span></div>
+            <span class="muted" id="ordersCount"></span>
+        </div>
         <div class="table-wrap">
             <table>
                 <thead>
                     <tr>
                         <th>PO Number</th>
                         <th>Tags</th>
-                        <th>Sessions</th>
-                        <th>CNF</th>
+                        <th class="num">Sessions</th>
+                        <th class="num">CNF</th>
                         <th>Total Time</th>
                         <th>Status</th>
                         <th>Created</th>
                     </tr>
                 </thead>
                 <tbody id="ordersBody">
-                    <tr><td colspan="7" class="empty-state">Loading…</td></tr>
+                    <tr><td colspan="7" class="empty-note">Loading…</td></tr>
                 </tbody>
             </table>
         </div>
-    </div>
+    </section>
 
+</main>
+
+<!-- Drill-down modal -->
+<div class="modal-overlay" id="drillModal">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="icon-btn modal-close" onclick="closeModal()" title="Close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+        <div class="modal-po-title" id="modalTitle"></div>
+        <div class="modal-meta" id="modalMeta"></div>
+        <div id="modalBody"></div>
+    </div>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 // ── Constants ────────────────────────────────────────────────────
@@ -509,6 +737,9 @@ const WORK_START_MIN = 7 * 60 + 30;
 const WORK_END_MIN   = 16 * 60;
 const LUNCH_START    = 12 * 60;
 const LUNCH_END      = 12 * 60 + 30;
+
+// Series colours — mid-tones that read on both the dark and light theme
+const BLUE = '#3b82f6', GREEN = '#10b981', AMBER = '#f59e0b', RED = '#ef4444', PURPLE = '#8b5cf6', CYAN = '#06b6d4';
 
 // ── Utilities ────────────────────────────────────────────────────
 function fmtMs(ms) {
@@ -544,17 +775,107 @@ function fmtDateLabel(dateStr) {
     return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+function fmtShortDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function hexA(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const icon = (id, cls = '') => `<svg class="ic ${cls}"><use href="#i-${id}"/></svg>`;
+
+// Vertical gradient under a line, scriptable so it follows the chart's size
+function areaFill(color, top = 0.35) {
+    return ctx => {
+        const { chart } = ctx;
+        if (!chart.chartArea) return hexA(color, top / 3);
+        const g = chart.ctx.createLinearGradient(0, chart.chartArea.top, 0, chart.chartArea.bottom);
+        g.addColorStop(0, hexA(color, top));
+        g.addColorStop(1, hexA(color, 0));
+        return g;
+    };
+}
+
+// ── Theme ────────────────────────────────────────────────────────
+const currentTheme = () => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+
+function applyChartTheme() {
+    Chart.defaults.color = cssVar('--text-dim');
+    Chart.defaults.borderColor = cssVar('--grid');
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.font.size = 11;
+    const tt = Chart.defaults.plugins.tooltip;
+    tt.backgroundColor = cssVar('--surface-2');
+    tt.titleColor = cssVar('--text');
+    tt.bodyColor = cssVar('--text-dim');
+    tt.borderColor = cssVar('--border-strong');
+    tt.borderWidth = 1;
+    tt.padding = 10;
+    tt.cornerRadius = 8;
+    tt.displayColors = false;
+    document.getElementById('themeIcon').setAttribute('href', currentTheme() === 'dark' ? '#i-sun' : '#i-moon');
+}
+
+function toggleTheme() {
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('po-stats-theme', next); } catch (e) {}
+    applyChartTheme();
+    loadSparklines();
+    applyFilter();
+}
+
+// ── Navigation ───────────────────────────────────────────────────
+function toggleNav(force) {
+    document.body.classList.toggle('nav-open', force);
+}
+
+document.querySelectorAll('.nav-link').forEach(a => a.addEventListener('click', () => toggleNav(false)));
+
+// Highlight the sidebar link for the section in the middle of the viewport
+const navObserver = new IntersectionObserver(entries => {
+    for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        document.querySelectorAll('.nav-link').forEach(a =>
+            a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id));
+    }
+}, { rootMargin: '-40% 0px -55% 0px' });
+document.querySelectorAll('[data-spy]').forEach(s => navObserver.observe(s));
+
+// ── Toast ────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(html, kind = '', ms = 5000) {
+    const t = document.getElementById('toast');
+    t.innerHTML = html;
+    t.className = `toast show ${kind}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
 // ── Chart state ──────────────────────────────────────────────────
 let tagChart, dayChart;
 
-const CHART_DEFAULTS = {
-    plugins: { legend: { display: false } },
-    scales: {
-        x: { ticks: { font: { size: 11 } }, grid: { display: false } },
-        y: { ticks: { font: { size: 11 } }, beginAtZero: true },
-    },
-    animation: { duration: 400 },
-};
+function chartOptions(extra = {}) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, border: { display: false } },
+            y: { beginAtZero: true, border: { display: false } },
+        },
+        ...extra,
+    };
+}
 
 // ── Lifetime summary cards ────────────────────────────────────────
 async function loadLifetime() {
@@ -575,6 +896,62 @@ async function loadLifetime() {
     document.getElementById('ltDays').textContent    = d.working_days;
     document.getElementById('ltDaysSub').textContent = d.min_date
         ? `${d.min_date} → ${d.max_date}` : 'no data yet';
+
+    document.getElementById('dataRangeText').textContent = d.min_date
+        ? `${fmtDate(new Date(d.min_date + 'T00:00:00').getTime())} – ${fmtDate(new Date(d.max_date + 'T00:00:00').getTime())}`
+        : 'No data yet';
+}
+
+// ── KPI sparklines (lifetime, recent trend) ───────────────────────
+const sparkCharts = {};
+
+function renderSpark(id, values, color) {
+    if (sparkCharts[id]) sparkCharts[id].destroy();
+    const canvas = document.getElementById(id);
+    canvas.parentElement.style.visibility = values.length > 1 ? '' : 'hidden';
+    if (values.length < 2) return;
+    sparkCharts[id] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: values.map((_, i) => i),
+            datasets: [{
+                data: values, borderColor: color, borderWidth: 2, tension: 0.3, cubicInterpolationMode: 'monotone',
+                pointRadius: 2, pointBackgroundColor: color, pointBorderWidth: 0,
+                fill: true, backgroundColor: areaFill(color, 0.28),
+            }],
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: false }, y: { display: false, beginAtZero: true } },
+            layout: { padding: { top: 4, bottom: 2, left: 3, right: 3 } },
+        },
+    });
+}
+
+function weekStartIso(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function loadSparklines() {
+    const [sum, vel, gaps] = await Promise.all([
+        fetch('/api/summary').then(r => r.json()),
+        fetch('/api/velocity').then(r => r.json()),
+        fetch('/api/gaps').then(r => r.json()),
+    ]);
+    renderSpark('sparkOrders', vel.slice(-12).map(w => w.count), BLUE);
+    renderSpark('sparkTracked', sum.day_times.slice(-20).map(d => +(d.total_ms / 3600000).toFixed(2)), GREEN);
+    renderSpark('sparkInactive', gaps.days.filter(d => d.has_sessions).slice(-20).map(d => d.total_gap_min), AMBER);
+
+    const perWeek = {};
+    for (const d of sum.day_times) {
+        if (!d.day) continue;
+        const k = weekStartIso(d.day);
+        perWeek[k] = (perWeek[k] || 0) + 1;
+    }
+    renderSpark('sparkDays', Object.keys(perWeek).sort().slice(-12).map(k => perWeek[k]), PURPLE);
 }
 
 // ── Global filter ─────────────────────────────────────────────────
@@ -621,13 +998,23 @@ function clearPreset() {
     document.querySelectorAll('.filter-preset').forEach(b => b.classList.remove('active'));
 }
 
+function periodText(from, to) {
+    const p = document.querySelector('.filter-preset.active');
+    if (p) return p.textContent.trim();
+    if (from && to) return from === to ? fmtDateLabel(from) : `${fmtDateLabel(from)} – ${fmtDateLabel(to)}`;
+    return 'All Time';
+}
+
 function applyFilter() {
     const from = document.getElementById('filterFrom').value;
     const to   = document.getElementById('filterTo').value;
+    document.querySelectorAll('.js-period').forEach(el => el.textContent = `· ${periodText(from, to)}`);
     loadCharts(from, to);
     loadGauge(from, to);
     loadGaps(from, to);
     loadPatterns(from, to);
+    loadOrders(from, to);
+    loadVelocity(from, to);
 }
 
 // ── Charts (tag + day) ────────────────────────────────────────────
@@ -637,23 +1024,70 @@ async function loadCharts(from, to) {
     const r = await fetch(url);
     const d = await r.json();
 
+    renderTagChart(d.tag_times);
+    renderDayChart(d.day_times);
+    renderHeatmap(d.day_times);
+}
+
+// Top tags by time; the long tail is folded into one "Other" bar so labels stay readable
+const TAG_LIMIT = 12;
+function renderTagChart(tagTimes) {
     if (tagChart) tagChart.destroy();
-    tagChart = new Chart(document.getElementById('tagChart'), {
+    tagChart = null;
+    const canvas = document.getElementById('tagChart');
+    const rows = tagTimes.filter(t => t.total_ms > 0);
+    document.getElementById('tagEmpty').style.display = rows.length ? 'none' : 'block';
+    canvas.style.display = rows.length ? '' : 'none';
+    if (!rows.length) return;
+
+    const top  = rows.slice(0, TAG_LIMIT);
+    const rest = rows.slice(TAG_LIMIT);
+    const labels = top.map(t => t.tag);
+    const values = top.map(t => +(t.total_ms / 3600000).toFixed(2));
+    const colors = top.map(() => BLUE);
+    if (rest.length) {
+        labels.push(`Other (${rest.length} tags)`);
+        values.push(+(rest.reduce((s, t) => s + t.total_ms, 0) / 3600000).toFixed(2));
+        colors.push('#64748b');
+    }
+
+    tagChart = new Chart(canvas, {
         type: 'bar',
         data: {
-            labels: d.tag_times.map(t => t.tag),
-            datasets: [{ data: d.tag_times.map(t => +(t.total_ms / 3600000).toFixed(2)),
-                         backgroundColor: '#3b82f6', borderRadius: 5, borderSkipped: false }],
+            labels,
+            datasets: [{ data: values, backgroundColor: colors, hoverBackgroundColor: colors.map(c => hexA(c, 0.8)),
+                         borderRadius: 6, borderSkipped: false, maxBarThickness: 22 }],
         },
-        options: { ...CHART_DEFAULTS },
+        options: chartOptions({
+            indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: true, border: { display: false }, ticks: { callback: v => `${v}h` } },
+                y: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: false } },
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: {
+                    label: c => `${c.parsed.x} h`,
+                    afterLabel: c => c.dataIndex === TAG_LIMIT && rest.length
+                        ? rest.slice(0, 8).map(t => `${t.tag}: ${(t.total_ms / 3600000).toFixed(1)} h`)
+                              .concat(rest.length > 8 ? [`…and ${rest.length - 8} more`] : [])
+                        : '',
+                } },
+            },
+        }),
     });
-
-    renderDayChart(d.day_times);
 }
 
 function renderDayChart(dayTimes) {
     if (dayChart) dayChart.destroy();
-    if (!dayTimes.length) return;
+    dayChart = null;
+    const box = document.getElementById('dayChart').parentElement;
+    const legendEl = document.getElementById('dayChartLegend');
+    const ann = document.getElementById('dayChartAnnotation');
+    const empty = !dayTimes.length;
+    box.style.display = empty ? 'none' : '';
+    document.getElementById('dayChartEmpty').style.display = empty ? 'block' : 'none';
+    if (empty) { legendEl.innerHTML = ''; ann.innerHTML = ''; return; }
 
     const values  = dayTimes.map(t => +(t.total_ms / 3600000).toFixed(2));
     const maxVal  = Math.max(...values);
@@ -662,40 +1096,51 @@ function renderDayChart(dayTimes) {
     const minIdx  = values.lastIndexOf(minVal);   // last in case of ties
     const hasRange = maxIdx !== minIdx;
 
-    const colors = values.map((_, i) =>
-        i === maxIdx ? '#16a34a' :
-        i === minIdx && hasRange ? '#ef4444' :
-        '#3b82f6'
-    );
+    const pointColor = values.map((_, i) =>
+        i === maxIdx ? GREEN : i === minIdx && hasRange ? RED : BLUE);
+    const pointSize = values.map((_, i) =>
+        i === maxIdx || (i === minIdx && hasRange) ? 5 : values.length > 60 ? 0 : 3);
 
     dayChart = new Chart(document.getElementById('dayChart'), {
-        type: 'bar',
+        type: 'line',
         data: {
-            labels: dayTimes.map(t => t.day),
-            datasets: [{ data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false }],
+            labels: dayTimes.map(t => fmtShortDate(t.day)),
+            datasets: [{
+                data: values, borderColor: BLUE, borderWidth: 2, tension: 0.3, cubicInterpolationMode: 'monotone',
+                fill: true, backgroundColor: areaFill(BLUE, 0.32),
+                pointBackgroundColor: pointColor, pointBorderColor: pointColor,
+                pointRadius: pointSize, pointHoverRadius: 6,
+            }],
         },
-        options: { ...CHART_DEFAULTS },
+        options: chartOptions({
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: {
+                    title: items => fmtDateLabel(dayTimes[items[0].dataIndex].day),
+                    label: c => `${c.parsed.y.toFixed(2)} h`,
+                } },
+            },
+            scales: {
+                x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 12 } },
+                y: { beginAtZero: true, border: { display: false }, ticks: { callback: v => `${v}h` } },
+            },
+        }),
     });
 
-    // Legend
-    const legendEl = document.getElementById('dayChartLegend');
     const dot = (color, label) =>
-        `<span style="display:flex;align-items:center;gap:4px;font-size:0.75rem;color:#6b7280">
-            <span style="width:12px;height:12px;background:${color};border-radius:2px;display:inline-block"></span>${label}
-         </span>`;
+        `<span class="legend-item"><span class="legend-dot" style="background:${color}"></span>${label}</span>`;
     legendEl.innerHTML = hasRange
-        ? dot('#16a34a', 'Best day') + dot('#ef4444', 'Worst day') + dot('#3b82f6', 'Other days')
-        : dot('#3b82f6', 'Days');
+        ? dot(GREEN, 'Best day') + dot(RED, 'Worst day') + dot(BLUE, 'Other days')
+        : dot(BLUE, 'Days');
 
-    // Annotation
-    const ann = document.getElementById('dayChartAnnotation');
     if (hasRange) {
         const bestH  = dayTimes[maxIdx].total_ms / 3600000;
         const worstH = dayTimes[minIdx].total_ms / 3600000;
         ann.innerHTML =
-            `<span style="color:#16a34a">▲ Best: ${dayTimes[maxIdx].day} (${bestH.toFixed(1)}h)</span>` +
-            `&nbsp;&nbsp;|&nbsp;&nbsp;` +
-            `<span style="color:#ef4444">▼ Worst: ${dayTimes[minIdx].day} (${worstH.toFixed(1)}h)</span>`;
+            `<span class="c-green">▲ Best: ${dayTimes[maxIdx].day} (${bestH.toFixed(1)}h)</span>` +
+            `&nbsp;&nbsp;<span class="muted">|</span>&nbsp;&nbsp;` +
+            `<span class="c-red">▼ Worst: ${dayTimes[minIdx].day} (${worstH.toFixed(1)}h)</span>`;
     } else {
         ann.innerHTML = '';
     }
@@ -715,34 +1160,38 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
     const MAX_H  = 8;
     const canvas = document.getElementById('gaugeChart');
     const ctx    = canvas.getContext('2d');
+    const font   = getComputedStyle(document.body).fontFamily;
 
-    // Fixed intrinsic resolution; CSS scales it to fill the card column
-    const W = 400, H = 220;
-    canvas.width  = W;
-    canvas.height = H;
+    // Fixed layout size, drawn at device resolution; CSS scales it to the card
+    const W = 400, H = 230;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const cx     = W / 2;   // 200
-    const cy     = 148;     // arc centre — 72 px below for text, ~32 px clearance at top
-    const r      = 116;     // arc radius
-    const trackW = 28;
+    const cx     = W / 2;
+    const cy     = 150;     // arc centre — room below for text, clearance at top
+    const r      = 112;     // arc radius
+    const trackW = 22;
 
     // avgH: average hours over days that had sessions (inactive days excluded)
-    const avgH = activeDays > 0 ? (totalMs / 3600000) / activeDays : 0;
-    const pct  = targetMs > 0 ? totalMs / targetMs : 0;
+    const avgH          = activeDays > 0 ? (totalMs / 3600000) / activeDays : 0;
+    const BOOKING_TARGET_H = 7.5;
+    const pct  = activeDays > 0 ? totalMs / (activeDays * BOOKING_TARGET_H * 3600000) : 0;
     // Map hours to canvas angle: h=0 → π (9 o'clock), h=MAX_H → 2π (3 o'clock), through 12 o'clock
     const h2a  = h => Math.PI + (Math.min(h, MAX_H) / MAX_H) * Math.PI;
 
     ctx.clearRect(0, 0, W, H);
 
-    // ── Coloured zone arcs ───────────────────────────────────────────
-    const zones = [
-        { from: 0,    to: 6,    color: '#fca5a5' },   // red
-        { from: 6,    to: 6.25, color: '#fef08a' },   // yellow
-        { from: 6.25, to: 7,    color: '#bbf7d0' },   // light green
-        { from: 7,    to: MAX_H, color: '#4ade80' },  // green
-    ];
+    // ── Background track + coloured zone arcs ─────────────────────────
     ctx.lineWidth = trackW;
     ctx.lineCap   = 'butt';
+    const zones = [
+        { from: 0,    to: 6,     color: hexA(RED, 0.8) },     // well behind
+        { from: 6,    to: 7,     color: hexA(AMBER, 0.85) },  // below target
+        { from: 7,    to: 7.5,   color: hexA(GREEN, 0.55) },  // close
+        { from: 7.5,  to: MAX_H, color: GREEN },              // on/above 7.5h target
+    ];
     for (const z of zones) {
         ctx.beginPath();
         ctx.arc(cx, cy, r, h2a(z.from), h2a(z.to));
@@ -750,10 +1199,10 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
         ctx.stroke();
     }
 
-    // ── White separator ticks at zone boundaries ──────────────────────
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth   = 2;
-    for (const h of [6, 6.25, 7]) {
+    // ── Separator ticks at zone boundaries ────────────────────────────
+    ctx.strokeStyle = cssVar('--surface');
+    ctx.lineWidth   = 3;
+    for (const h of [6, 7, 7.5]) {
         const a = h2a(h);
         ctx.save();
         ctx.translate(cx, cy);
@@ -766,12 +1215,12 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
     }
 
     // ── Hour labels around arc ────────────────────────────────────────
-    const labelR = r + 22;
-    ctx.fillStyle    = '#6b7280';
-    ctx.font         = '12px system-ui, sans-serif';
+    const labelR = r + 24;
+    ctx.fillStyle    = cssVar('--text-muted');
+    ctx.font         = `500 12px ${font}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    for (const [h, txt] of [[0, '0h'], [6, '6h'], [7, '7h'], [MAX_H, '8h']]) {
+    for (const [h, txt] of [[0, '0h'], [6, '6h'], [7.5, '7.5h'], [MAX_H, '8h']]) {
         const a  = h2a(h);
         const lx = cx + labelR * Math.cos(a);
         // Push 0h / 8h labels slightly below the arc endpoints for readability
@@ -781,121 +1230,134 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
 
     // ── Needle ────────────────────────────────────────────────────────
     const needleA = h2a(Math.min(avgH, MAX_H));
+    const ink = cssVar('--text');
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + (r - 10) * Math.cos(needleA), cy + (r - 10) * Math.sin(needleA));
-    ctx.strokeStyle = '#374151';
+    ctx.lineTo(cx + (r - 8) * Math.cos(needleA), cy + (r - 8) * Math.sin(needleA));
+    ctx.strokeStyle = ink;
     ctx.lineWidth   = 3;
     ctx.lineCap     = 'round';
     ctx.stroke();
 
     // ── Hub ───────────────────────────────────────────────────────────
     ctx.beginPath();
-    ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
-    ctx.fillStyle = '#374151';
+    ctx.arc(cx, cy, 9, 0, 2 * Math.PI);
+    ctx.fillStyle = ink;
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
-    ctx.fillStyle = 'white';
+    ctx.arc(cx, cy, 3.5, 0, 2 * Math.PI);
+    ctx.fillStyle = cssVar('--surface');
     ctx.fill();
 
     // ── Text below arc ────────────────────────────────────────────────
     // Needle and zones are based on average hours per working day
-    const zoneLabel = avgH >= 7    ? 'On Target'
-                    : avgH >= 6.25 ? 'Getting There'
+    const zoneLabel = avgH >= 7.5  ? 'On Target'
+                    : avgH >= 6.5  ? 'Getting There'
                     : avgH >= 6    ? 'Below Target'
                     : activeDays   ? 'Behind'
                     : 'No Data';
-    const zoneColor = avgH >= 7    ? '#16a34a'
-                    : avgH >= 6.25 ? '#65a30d'
-                    : avgH >= 6    ? '#d97706'
-                    : activeDays   ? '#dc2626'
-                    : '#9ca3af';
+    const zoneColor = avgH >= 7.5  ? cssVar('--green-text')
+                    : avgH >= 6.5  ? cssVar('--green-text')
+                    : avgH >= 6    ? cssVar('--amber-text')
+                    : activeDays   ? cssVar('--red-text')
+                    : cssVar('--text-muted');
 
-    // Primary: avg over active days only (inactive days excluded from denominator)
     const primaryText = activeDays <= 1
         ? fmtMs(totalMs)
         : fmtMs(Math.round(totalMs / activeDays)) + ' avg/day';
 
+    const pctVal  = Math.round(pct * 100);
+    const pctStr  = pctVal > 100 ? `+${pctVal - 100}% over target` : `${pctVal}% of 7.5h`;
     const subText = activeDays > 0
-        ? `${Math.round(pct * 100)}% · total ${fmtMs(totalMs)} · ${activeDays} day${activeDays !== 1 ? 's' : ''}`
+        ? `${pctStr} · total ${fmtMs(totalMs)} · ${activeDays} day${activeDays !== 1 ? 's' : ''}`
         : 'No sessions in this period';
 
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
 
-    ctx.font      = 'bold 12px system-ui, sans-serif';
+    ctx.font      = `700 11px ${font}`;
     ctx.fillStyle = zoneColor;
-    ctx.fillText(zoneLabel, cx, cy + 12);
+    ctx.fillText(zoneLabel.toUpperCase(), cx, cy + 16);
 
-    ctx.font      = 'bold 24px system-ui, sans-serif';
-    ctx.fillStyle = '#111827';
-    ctx.fillText(primaryText, cx, cy + 28);
+    ctx.font      = `700 24px ${font}`;
+    ctx.fillStyle = ink;
+    ctx.fillText(primaryText, cx, cy + 32);
 
-    ctx.font      = '11px system-ui, sans-serif';
-    ctx.fillStyle = '#9ca3af';
-    ctx.fillText(subText, cx, cy + 62);
+    ctx.font      = `400 11px ${font}`;
+    ctx.fillStyle = cssVar('--text-muted');
+    ctx.fillText(subText, cx, cy + 64);
 }
 
 // ── Orders table ─────────────────────────────────────────────────
-async function loadOrders() {
-    const r = await fetch('/api/orders');
+function ordersTableTitle(from, to) {
+    const activePreset = document.querySelector('.filter-preset.active');
+    if (activePreset) {
+        const p = activePreset.dataset.preset;
+        if (p === 'today')    return "Today's Orders";
+        if (p === 'week')     return "This Week's Orders";
+        if (p === 'lastWeek') return "Last Week's Orders";
+        if (p === 'month')    return "This Month's Orders";
+        if (p === 'all')      return "All Orders";
+    }
+    if (from && to) {
+        if (from === to) return `Orders — ${fmtDateLabel(from)}`;
+        return `Orders — ${fmtDateLabel(from)} to ${fmtDateLabel(to)}`;
+    }
+    return "All Orders";
+}
+
+async function loadOrders(from, to) {
+    let url = '/api/orders';
+    if (from && to) url += `?from=${from}&to=${to}`;
+    const r = await fetch(url);
     const orders = await r.json();
+    document.getElementById('ordersTitle').textContent = ordersTableTitle(from, to);
+    document.getElementById('ordersCount').textContent = `${orders.length} order${orders.length !== 1 ? 's' : ''}`;
     const tbody = document.getElementById('ordersBody');
 
     if (!orders.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No orders yet — import a JSON file to get started.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-note">${from && to
+            ? 'No orders worked in this period.'
+            : 'No orders yet — import a JSON file to get started.'}</td></tr>`;
+        renderHistogram([]);
         return;
     }
 
     tbody.innerHTML = orders.map(o => `
-        <tr>
-            <td><span class="po-num">${o.po}</span></td>
-            <td>${o.tags.map(t => `<span class="tag">${t}</span>`).join('')}</td>
-            <td style="text-align:center">${o.session_count}</td>
-            <td style="text-align:center;color:#6b7280;font-size:0.8rem">${o.cnf_count}/${o.session_count}</td>
-            <td>${fmtMs(o.total_ms)}</td>
+        <tr class="clickable" onclick="openDrilldown(${o.id})" title="Click to view session history">
+            <td><span class="po-num">${esc(o.po)}</span></td>
+            <td>${o.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</td>
+            <td class="num">${o.session_count}</td>
+            <td class="num cell-dim">${o.cnf_count}/${o.session_count}</td>
+            <td style="font-weight:600">${fmtMs(o.total_ms)}</td>
             <td><span class="badge ${o.finished ? 'badge-finished' : 'badge-active'}">${o.finished ? 'Finished' : 'Active'}</span></td>
-            <td style="white-space:nowrap;color:#6b7280;font-size:0.8rem">${fmtDate(o.created)}</td>
+            <td class="cell-dim">${fmtDate(o.created)}</td>
         </tr>
     `).join('');
+
+    renderHistogram(orders);
 }
 
 // ── Import ────────────────────────────────────────────────────────
 async function importFiles() {
-    const btn = document.getElementById('importBtn');
-    const msg = document.getElementById('importMsg');
+    const btn   = document.getElementById('importBtn');
+    const label = document.getElementById('importLabel');
+    const ic    = document.getElementById('importIcon');
     btn.disabled = true;
-    btn.textContent = 'Importing…';
-    msg.textContent = '';
-    msg.className = 'import-msg';
+    label.textContent = 'Importing…';
+    ic.querySelector('use').setAttribute('href', '#i-refresh');
+    ic.classList.add('spin');
 
     try {
-        const r = await fetch('/api/import', { method: 'POST' });
-        const d = await r.json();
-
-        if (d.errors && d.errors.length) {
-            msg.textContent = `Error: ${d.errors[0].error}`;
-            msg.className = 'import-msg err';
-        } else {
-            const n = d.imported.length;
-            const s = d.skipped.length;
-            msg.textContent = n > 0
-                ? `Imported ${n} file${n !== 1 ? 's' : ''} (${s} already imported)`
-                : `No new files — ${s} already imported`;
-            msg.className = 'import-msg ok';
-        }
-
-        if (d.imported.length > 0) {
-            await Promise.all([loadLifetime(), loadOrders()]);
-            applyFilter();
-        }
+        if (reportImport(await requestImport(), true)) refreshAll();
     } catch (e) {
-        msg.textContent = 'Failed: ' + e.message;
-        msg.className = 'import-msg err';
+        setImportStatus(`Import failed: ${e.message}`, true);
+        showToast(`${icon('alert', 'c-red')}<span>Import failed: ${esc(e.message)}</span>`, 'err', 10000);
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Import JSON Files';
+        label.textContent = 'Import JSON';
+        ic.classList.remove('spin');
+        ic.querySelector('use').setAttribute('href', '#i-download');
     }
 }
 
@@ -908,44 +1370,36 @@ async function loadPatterns(from, to) {
     const grid = document.getElementById('patternsGrid');
 
     if (d.total_days === 0) {
-        grid.innerHTML = '<div class="patterns-empty">No data for this period.</div>';
+        grid.innerHTML = '<div class="empty-note" style="grid-column:1/-1">No data for this period.</div>';
         return;
     }
 
     // ── Time-of-day slots ──────────────────────────────────────────
     const maxSlotDays = Math.max(...d.slots.map(s => s.inactive_days), 1);
-    const slotColor = pct =>
-        pct >= 60 ? '#ef4444' : pct >= 30 ? '#f59e0b' : '#94a3b8';
+    const slotColor = pct => pct >= 60 ? RED : pct >= 30 ? AMBER : '#94a3b8';
 
     const slotsHtml = d.slots.map(s => {
         const barW  = Math.round(s.inactive_days / maxSlotDays * 100);
         const label = s.inactive_days === 0
-            ? '<span style="color:#d1fae5;font-size:0.7rem">✓ clear</span>'
+            ? '<span class="c-green" style="font-size:0.72rem">✓ clear</span>'
             : `${s.inactive_days}/${d.total_days} days`;
         return `<div class="slot-row">
             <span class="slot-label">${s.label}</span>
-            <div class="slot-bar-track">
-                <div class="slot-bar-fill" style="width:${barW}%;background:${slotColor(s.pct)}"></div>
-            </div>
+            <div class="bar-track"><div class="bar-fill" style="width:${barW}%;background:${slotColor(s.pct)}"></div></div>
             <span class="slot-stat">${label}</span>
         </div>`;
     }).join('');
 
     // ── Day-of-week ────────────────────────────────────────────────
     const maxDowGap = Math.max(...d.by_dow.map(x => x.avg_gap_min), 1);
-    const dowColor = min =>
-        min >= 30 ? '#ef4444' : min >= 15 ? '#f59e0b' : '#4ade80';
+    const dowColor = min => min >= 30 ? RED : min >= 15 ? AMBER : GREEN;
 
     const dowHtml = d.by_dow.map(x => {
         const barW = Math.round(x.avg_gap_min / maxDowGap * 100);
-        const stat = x.days_tracked === 0
-            ? '<span style="color:#9ca3af">no data</span>'
-            : `${x.avg_gap_min} min avg`;
+        const stat = x.days_tracked === 0 ? 'no data' : `${x.avg_gap_min} min avg`;
         return `<div class="dow-row">
             <span class="dow-label">${x.day}</span>
-            <div class="dow-bar-track">
-                <div class="dow-bar-fill" style="width:${barW}%;background:${dowColor(x.avg_gap_min)}"></div>
-            </div>
+            <div class="bar-track"><div class="bar-fill" style="width:${barW}%;background:${dowColor(x.avg_gap_min)}"></div></div>
             <span class="dow-stat">${stat}</span>
         </div>`;
     }).join('');
@@ -958,10 +1412,77 @@ async function loadPatterns(from, to) {
         <div>
             <div class="patterns-section-label">Avg inactive time by day of week</div>
             ${dowHtml}
-            <div style="margin-top:10px;font-size:0.75rem;color:#9ca3af">
+            <div class="muted" style="margin-top:12px">
                 Based on ${d.total_days} day${d.total_days !== 1 ? 's' : ''} tracked
             </div>
         </div>`;
+}
+
+// ── Swimlane helpers ─────────────────────────────────────────────
+const LANE_COLORS = [
+    '#3b82f6','#10b981','#f59e0b','#8b5cf6',
+    '#ef4444','#06b6d4','#f97316','#ec4899',
+];
+
+function poColor(po) {
+    let h = 0;
+    for (const c of String(po)) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+    return LANE_COLORS[h % LANE_COLORS.length];
+}
+
+function buildSwimlanesHtml(day) {
+    if (!day.sessions || !day.sessions.length) return '';
+
+    const dayEndMin = timeToMin(day.day_end);
+    const span      = dayEndMin - WORK_START_MIN;
+
+    // Group sessions by PO, preserving chronological order of first appearance
+    const poOrder = [];
+    const poMap   = {};
+    for (const s of day.sessions) {
+        if (!poMap[s.po]) { poOrder.push(s.po); poMap[s.po] = { notes: s.notes, sessions: [] }; }
+        poMap[s.po].sessions.push(s);
+    }
+
+    const rows = poOrder.map(po => {
+        const color   = poColor(po);
+        const info    = poMap[po];
+        const label   = esc(info.notes ? info.notes : `PO ${po}`);
+        const tooltip = esc(`PO ${po}${info.notes ? ' · ' + info.notes : ''}`);
+
+        // Merge overlapping raw sessions per PO before rendering
+        const rawSegs = info.sessions
+            .map(s => [Math.max(timeToMin(s.start), WORK_START_MIN),
+                       Math.min(timeToMin(s.end),   dayEndMin)])
+            .filter(([s, e]) => e > s)
+            .sort((a, b) => a[0] - b[0]);
+        const mergedSegs = [];
+        for (const [s, e] of rawSegs) {
+            if (mergedSegs.length && s <= mergedSegs[mergedSegs.length - 1][1])
+                mergedSegs[mergedSegs.length - 1][1] = Math.max(mergedSegs[mergedSegs.length - 1][1], e);
+            else
+                mergedSegs.push([s, e]);
+        }
+
+        const hhmm = m => `${Math.floor(m / 60).toString().padStart(2, '0')}:${(m % 60 | 0).toString().padStart(2, '0')}`;
+        const segs = mergedSegs.map(([sMin, eMin]) => {
+            const left  = ((sMin - WORK_START_MIN) / span * 100).toFixed(2);
+            const width = ((eMin - sMin)           / span * 100).toFixed(2);
+            const dur   = Math.round(eMin - sMin);
+            return `<div class="swimlane-seg" style="left:${left}%;width:${width}%;background:${color}"
+                         title="${tooltip}: ${hhmm(sMin)}–${hhmm(eMin)} (${dur} min)"></div>`;
+        }).join('');
+
+        return `<div class="swimlane-row">
+            <span class="swimlane-label" title="${tooltip}">${label}</span>
+            <div class="swimlane-track">${segs}</div>
+        </div>`;
+    }).join('');
+
+    return `<div class="swimlane-section">
+        <div class="swimlane-section-label">Sessions by order</div>
+        ${rows}
+    </div>`;
 }
 
 // ── Gap analysis ──────────────────────────────────────────────────
@@ -974,29 +1495,38 @@ async function loadGaps(from, to) {
     // Always-visible summary row
     const summaryRow   = document.getElementById('gapSummaryRow');
     const summaryPills = document.getElementById('gapSummaryPills');
+    const toggleBtn    = document.getElementById('gapToggle');
     summaryRow.style.display = 'flex';
 
     if (summary.days_with_data === 0) {
-        summaryPills.innerHTML =
-            '<span style="color:#9ca3af;font-size:0.85rem">No sessions found in this range.</span>';
+        summaryPills.innerHTML = '<div class="muted" style="align-self:center">No sessions found in this range.</div>';
+        toggleBtn.style.display = 'none';
         document.getElementById('gapBody').style.display = 'none';
         document.getElementById('gapBody').innerHTML = '';
         return;
     }
+    toggleBtn.style.display = '';
 
+    const TARGET_MIN   = 450;                                          // 7.5h booking target
+    const WINDOW_MIN   = 480;                                          // 8h work window
+    const bookedMin    = summary.total_worked_min;
+    const shortfallMin = Math.max(0, TARGET_MIN * summary.days_with_data - bookedMin);
+    const unbookedMin  = Math.max(0, WINDOW_MIN  * summary.days_with_data - bookedMin);
+
+    const mini = (label, value, cls = '') =>
+        `<div class="mini"><div class="mini-label">${label}</div><div class="mini-value ${cls}">${value}</div></div>`;
     summaryPills.innerHTML =
-        `<strong>${summary.days_with_data}</strong> day${summary.days_with_data !== 1 ? 's' : ''} tracked
-         <span style="color:#d1d5db">·</span>
-         Total gaps: <strong style="color:#ef4444">${summary.total_gap_min} min</strong>
-         <span style="color:#d1d5db">·</span>
-         Avg: <strong>${summary.avg_gap_min} min/day</strong>`;
+        mini('Days tracked', summary.days_with_data) +
+        mini('Booked', fmtMin(bookedMin)) +
+        mini('Unbooked (8h)', fmtMin(unbookedMin), 'c-red') +
+        mini('Short of 7.5h', fmtMin(shortfallMin), 'c-amber');
 
     const legendHtml = `
         <div class="legend">
-            <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div> Working</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> Working</div>
             <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Inactive gap</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#9ca3af"></div> Lunch (excluded)</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div> Overtime past 16:00</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--lunch)"></div> Lunch (excluded)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div> Overtime past 16:00</div>
         </div>`;
 
     const dayBlocksHtml = days.filter(day => day.has_sessions).map(day => {
@@ -1036,11 +1566,12 @@ async function loadGaps(from, to) {
                     <div class="day-header">
                         <span class="day-label">${fmtDateLabel(day.date)}</span>
                         ${lateHtml}${overtimeHtml}
-                        <span style="font-size:0.78rem;color:#6b7280;margin-left:4px">Worked: <strong>${workedStr}</strong></span>
+                        <span class="day-worked">Worked: <strong>${workedStr}</strong></span>
                         <span class="gap-badge ${badgeClass}">${badgeText}</span>
                     </div>
                     <div class="timeline">${buildTimeline(day)}</div>
                     <div class="timeline-axis"><span>07:30</span><span>${axisEnd}</span></div>
+                    ${buildSwimlanesHtml(day)}
                     <div class="gap-list">${gapListHtml}</div>
                 </div>`;
     }).join('');
@@ -1114,21 +1645,337 @@ function pushGapSegs(gapStart, gapEnd, segs) {
     }
 }
 
+// ── Calendar heatmap ─────────────────────────────────────────────
+function renderHeatmap(dayTimes) {
+    const wrap = document.getElementById('heatmapWrap');
+    if (!dayTimes || !dayTimes.length) {
+        wrap.innerHTML = '<div class="empty-note">No data for this period.</div>';
+        return;
+    }
+
+    const dateMap = {};
+    for (const d of dayTimes) dateMap[d.day] = d.total_ms / 3600000;
+
+    const sorted    = Object.keys(dateMap).sort();
+    const firstDate = new Date(sorted[0] + 'T00:00:00');
+    const lastDate  = new Date(sorted[sorted.length - 1] + 'T00:00:00');
+
+    const dow = d => d.getDay() === 0 ? 6 : d.getDay() - 1;  // 0=Mon..6=Sun
+    const localIso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+    const start = new Date(firstDate); start.setDate(start.getDate() - dow(start));
+    const end   = new Date(lastDate);  end.setDate(end.getDate() + (6 - dow(end)));
+
+    const level = h => !h ? 0 : h < 2 ? 1 : h < 4 ? 2 : h < 6 ? 3 : 4;
+
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const cols = []; const monthLabels = []; let lastMonth = -1;
+    const cur = new Date(start);
+
+    while (cur <= end) {
+        if (cur.getMonth() !== lastMonth) {
+            monthLabels.push({ col: cols.length, label: MONTHS[cur.getMonth()] });
+            lastMonth = cur.getMonth();
+        }
+        const cells = [];
+        for (let d = 0; d < 7; d++) {
+            const iso = localIso(cur);
+            const h   = dateMap[iso];
+            cells.push({ iso, h, tip: h > 0 ? `${iso}: ${h.toFixed(1)}h` : iso });
+            cur.setDate(cur.getDate() + 1);
+        }
+        cols.push(cells);
+    }
+
+    // Place month labels at their column; drop one that would collide with the next
+    const monthHtml = monthLabels
+        .filter((ml, i) => i === monthLabels.length - 1 || monthLabels[i + 1].col - ml.col >= 3)
+        .map(ml => `<span class="hm-axis" style="position:absolute;left:${ml.col * 17}px">${ml.label}</span>`)
+        .join('');
+
+    const DOW = ['Mon','','Wed','','Fri','','Sun'];
+    const dayLabels = DOW.map(l =>
+        `<div class="hm-axis" style="height:14px;line-height:14px;text-align:right;padding-right:6px">${l}</div>`
+    ).join('');
+
+    const grid = cols.map(cells =>
+        `<div style="display:flex;flex-direction:column;gap:3px">${cells.map(c =>
+            `<div class="hm hm-${level(c.h)}" title="${c.tip}"></div>`
+        ).join('')}</div>`
+    ).join('');
+
+    const legend = [0, 1, 2, 3, 4].map(l => `<div class="hm hm-${l}"></div>`).join('');
+
+    wrap.innerHTML = `
+        <div class="hm-scroll">
+            <div style="position:relative;height:16px;margin-left:32px;margin-bottom:4px;width:${cols.length * 17}px">${monthHtml}</div>
+            <div style="display:flex;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;gap:3px;width:32px">${dayLabels}</div>
+                <div style="display:flex;gap:3px">${grid}</div>
+            </div>
+        </div>
+        <div class="muted" style="display:flex;align-items:center;gap:4px;margin-top:12px;font-size:0.74rem">
+            <span style="margin-right:4px">Less</span>${legend}<span style="margin-left:4px">More (8h+)</span>
+        </div>`;
+}
+
+// ── Completion velocity ───────────────────────────────────────────
+let velocityChart;
+async function loadVelocity(from, to) {
+    let url = '/api/velocity';
+    if (from && to) url += `?from=${from}&to=${to}`;
+    const r = await fetch(url);
+    const weeks = await r.json();
+
+    const canvas = document.getElementById('velocityChart');
+    const empty  = document.getElementById('velocityEmpty');
+
+    if (velocityChart) velocityChart.destroy();
+
+    if (!weeks.length) {
+        canvas.style.display = 'none';
+        empty.style.display  = 'block';
+        return;
+    }
+    canvas.style.display = '';
+    empty.style.display  = 'none';
+
+    velocityChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: weeks.map(w => `w/c ${fmtShortDate(w.week)}`),
+            datasets: [{
+                data: weeks.map(w => w.count),
+                backgroundColor: PURPLE, hoverBackgroundColor: '#a78bfa',
+                borderRadius: 6, borderSkipped: false, maxBarThickness: 32,
+            }],
+        },
+        options: chartOptions({
+            scales: {
+                x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 10 } },
+                y: { beginAtZero: true, border: { display: false }, ticks: { stepSize: 1 } },
+            },
+        }),
+    });
+}
+
+// ── Time distribution histogram ───────────────────────────────────
+let histogramChart;
+function renderHistogram(orders) {
+    const canvas = document.getElementById('histogramChart');
+    const empty  = document.getElementById('histogramEmpty');
+    const BUCKETS = [
+        { label: '<30m',   min: 0,          max: 30*60000  },
+        { label: '30–60m', min: 30*60000,   max: 60*60000  },
+        { label: '1–2h',   min: 60*60000,   max: 120*60000 },
+        { label: '2–4h',   min: 120*60000,  max: 240*60000 },
+        { label: '4–8h',   min: 240*60000,  max: 480*60000 },
+        { label: '8h+',    min: 480*60000,  max: Infinity  },
+    ];
+
+    const counts = BUCKETS.map(() => 0);
+    for (const o of orders) {
+        if (!o.total_ms) continue;
+        const i = BUCKETS.findIndex(b => o.total_ms >= b.min && o.total_ms < b.max);
+        if (i >= 0) counts[i]++;
+    }
+
+    if (histogramChart) histogramChart.destroy();
+
+    const hasData = orders.some(o => o.total_ms > 0);
+    if (!hasData) {
+        canvas.style.display = 'none';
+        empty.style.display  = 'block';
+        return;
+    }
+    canvas.style.display = '';
+    empty.style.display  = 'none';
+
+    histogramChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: BUCKETS.map(b => b.label),
+            datasets: [{
+                data: counts,
+                backgroundColor: CYAN, hoverBackgroundColor: '#22d3ee',
+                borderRadius: 6, borderSkipped: false, maxBarThickness: 40,
+            }],
+        },
+        options: chartOptions({
+            scales: {
+                x: { grid: { display: false }, border: { display: false } },
+                y: { beginAtZero: true, border: { display: false }, ticks: { stepSize: 1 } },
+            },
+        }),
+    });
+}
+
+// ── Idle order alert ──────────────────────────────────────────────
+async function loadIdle() {
+    const r = await fetch('/api/idle?days=7');
+    const d = await r.json();
+    const card = document.getElementById('idleCard');
+    document.getElementById('idleThresholdLabel').textContent = d.threshold_days;
+
+    if (!d.orders.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    document.getElementById('idleList').innerHTML = d.orders.map(o => {
+        const daysBadge = o.idle_days === null
+            ? '<span class="idle-badge idle-badge-never">Never worked</span>'
+            : `<span class="idle-badge idle-badge-warn">${o.idle_days}d idle</span>`;
+        const tags  = o.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('');
+        const notes = o.notes ? `<span class="idle-notes">${esc(o.notes)}</span>` : '';
+        const time  = o.total_ms ? `<span class="idle-time">${fmtMs(o.total_ms)} total</span>` : '';
+        return `<div class="idle-row" onclick="openDrilldown(${o.id})" title="Click to view session history">
+            <span class="idle-po">${esc(o.po)}</span>${daysBadge}${tags}${notes}${time}
+        </div>`;
+    }).join('');
+}
+
+// ── Order drill-down modal ────────────────────────────────────────
+async function openDrilldown(orderId) {
+    const r = await fetch(`/api/orders/${orderId}/sessions`);
+    const d = await r.json();
+    if (d.error) return;
+
+    const { order, sessions } = d;
+    document.getElementById('modalTitle').textContent =
+        `PO ${order.po}${order.notes ? ' — ' + order.notes : ''}`;
+
+    const tags   = order.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    const status = `<span class="badge ${order.finished ? 'badge-finished' : 'badge-active'}">${order.finished ? 'Finished' : 'Active'}</span>`;
+    const total  = fmtMs(sessions.reduce((s, x) => s + x.duration_ms, 0));
+    document.getElementById('modalMeta').innerHTML =
+        `${tags}${status}<span>${sessions.length} session${sessions.length !== 1 ? 's' : ''}</span><span>·</span><span>${total} total</span>`;
+
+    if (!sessions.length) {
+        document.getElementById('modalBody').innerHTML =
+            '<div class="modal-empty">No sessions recorded for this order.</div>';
+    } else {
+        const byDate = {};
+        for (const s of sessions) {
+            (byDate[s.date] = byDate[s.date] || []).push(s);
+        }
+        document.getElementById('modalBody').innerHTML = Object.entries(byDate).map(([date, ss]) => {
+            const dayTotal = fmtMs(ss.reduce((sum, s) => sum + s.duration_ms, 0));
+            const rows = ss.map(s => `
+                <div class="session-row">
+                    <span class="session-time">${s.start} – ${s.end}</span>
+                    <span class="session-dur">${fmtMin(s.duration_min)}</span>
+                    <span>${s.cnf ? '<span class="cnf-yes">CNF</span>' : '<span class="cnf-no">—</span>'}</span>
+                </div>`).join('');
+            return `<div class="modal-day-group">
+                <div class="modal-day-label">${fmtDateLabel(date)} &nbsp;·&nbsp; ${dayTotal}</div>
+                ${rows}
+            </div>`;
+        }).join('');
+    }
+
+    document.getElementById('drillModal').classList.add('open');
+}
+
+function closeModal() {
+    document.getElementById('drillModal').classList.remove('open');
+}
+
+document.getElementById('drillModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); toggleNav(false); }
+});
+
 // ── Gap collapse toggle ───────────────────────────────────────────
 function toggleGapBody() {
     const body   = document.getElementById('gapBody');
-    const arrow  = document.getElementById('gapToggleArrow');
+    const btn    = document.getElementById('gapToggle');
     const label  = document.getElementById('gapToggleText');
     const open   = body.style.display === 'none' || body.style.display === '';
     body.style.display  = open ? 'block' : 'none';
-    arrow.classList.toggle('flipped', open);
+    btn.classList.toggle('open', open);
     label.textContent   = open ? 'Hide breakdown' : 'Show breakdown';
 }
 
+function refreshAll() {
+    loadLifetime();
+    loadSparklines();
+    loadIdle();
+    applyFilter();
+}
+
+// ── Auto-import ───────────────────────────────────────────────────
+// Picks up new or changed exports in the import folder (e.g. synced there
+// by Syncthing) on load, on returning to the tab, and every few minutes.
+const AUTO_IMPORT_EVERY = 5 * 60 * 1000;
+let lastAutoImport = 0;
+let lastImportNote = '';
+
+async function requestImport() {
+    const r = await fetch('/api/import', { method: 'POST' });
+    if (!r.ok) throw new Error(`the server answered ${r.status} ${r.statusText}`);
+    return r.json();
+}
+
+function setImportStatus(text, bad = false) {
+    const el = document.getElementById('importStatus');
+    el.textContent = text;
+    el.classList.toggle('bad', bad);
+}
+
+// Shows what an import did: the sidebar status line, plus a toast for news or
+// problems. A problem that keeps recurring is only toasted again on a manual
+// import, so the 5-minute check doesn't nag. Returns true if data changed.
+function reportImport(d, manual) {
+    const n = d.imported.length;
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const note = d.problem
+        || (d.errors.length ? `Could not import ${d.errors[0].file}: ${d.errors[0].error}` : '');
+
+    if (note) setImportStatus(note, true);
+    else setImportStatus(`${d.found} export file${d.found !== 1 ? 's' : ''} found · checked ${time}`);
+
+    if (note && (manual || note !== lastImportNote)) {
+        showToast(`${icon('alert', 'c-red')}<span>${esc(note)}</span>`, 'err', 12000);
+    } else if (!note && n) {
+        showToast(`${icon(manual ? 'check' : 'refresh', 'c-green')}<span>${manual ? 'Imported' : 'Picked up'} ${n} new or updated file${n !== 1 ? 's' : ''}</span>`, 'ok');
+    } else if (!note && manual) {
+        showToast(`${icon('check', 'c-blue')}<span>No new or changed files</span>`, 'ok');
+    }
+    lastImportNote = note;
+    return n > 0;
+}
+
+async function autoImport() {
+    lastAutoImport = Date.now();
+    try {
+        return reportImport(await requestImport(), false);
+    } catch (e) {
+        console.warn('Auto-import failed', e);
+        setImportStatus(`Couldn't check the import folder: ${e.message}`, true);
+        return false;
+    }
+}
+
+async function autoImportAndRefresh() {
+    if (await autoImport()) refreshAll();
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - lastAutoImport > 60000) autoImportAndRefresh();
+});
+setInterval(() => { if (!document.hidden) autoImportAndRefresh(); }, AUTO_IMPORT_EVERY);
+
 // ── Init ──────────────────────────────────────────────────────────
-loadLifetime();
-loadOrders();
-setFilter('all');  // default to All Time; charts load as part of setFilter
+// Wait for the web font so the canvas gauge is drawn with it
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(async () => {
+    applyChartTheme();
+    await autoImport();
+    loadLifetime();
+    loadSparklines();
+    loadIdle();
+    setFilter('all');  // default to All Time; applyFilter (called by setFilter) loads orders too
+});
 </script>
 </body>
 </html>

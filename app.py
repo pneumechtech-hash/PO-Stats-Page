@@ -1,4 +1,5 @@
 import datetime
+import threading
 
 from flask import Flask, jsonify, render_template, request
 
@@ -7,10 +8,25 @@ from ingest import ingest_folder
 
 app = Flask(__name__)
 
+# Runs on import so a production server (gunicorn in Docker) gets the schema too
+init_db()
+
+# Under gunicorn, import once at startup: the data is there before anyone opens
+# the page, and the container log says straight away whether the import folder
+# can be read. (Skipped for `python app.py`, whose reloader loads this file twice.)
+if __name__ != '__main__':
+    threading.Thread(target=ingest_folder, name='startup-import', daemon=True).start()
+
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/healthz')
+def healthz():
+    get_db().close()
+    return 'ok'
 
 
 @app.route('/api/import', methods=['POST'])
@@ -90,21 +106,52 @@ def gaps():
             FROM sessions ORDER BY day
         ''').fetchall()
 
-    results = [_compute_day_gaps(conn, row['day']) for row in dates]
+    results = []
+    for row in dates:
+        day_data = _compute_day_gaps(conn, row['day'])
+        if day_data['has_sessions']:
+            day_data['sessions'] = _get_day_sessions(conn, row['day'])
+        results.append(day_data)
     conn.close()
 
-    days_with_data = [d for d in results if d['has_sessions']]
-    total_gap_min  = sum(d['total_gap_min'] for d in days_with_data)
-    avg_gap_min    = round(total_gap_min / len(days_with_data)) if days_with_data else 0
+    days_with_data  = [d for d in results if d['has_sessions']]
+    total_gap_min   = sum(d['total_gap_min'] for d in days_with_data)
+    avg_gap_min     = round(total_gap_min / len(days_with_data)) if days_with_data else 0
+    total_worked_min = sum(d.get('total_worked_min', 0) for d in days_with_data)
 
     return jsonify({
         'days': results,
         'summary': {
-            'days_with_data': len(days_with_data),
-            'total_gap_min': total_gap_min,
-            'avg_gap_min': avg_gap_min,
+            'days_with_data':  len(days_with_data),
+            'total_gap_min':   total_gap_min,
+            'avg_gap_min':     avg_gap_min,
+            'total_worked_min': total_worked_min,
         },
     })
+
+
+def _get_day_sessions(conn, date_str):
+    rows = conn.execute('''
+        SELECT s.start, s.duration, o.po, o.notes
+        FROM sessions s
+        JOIN orders o ON o.id = s.order_id
+        WHERE date(s.start / 1000, 'unixepoch', 'localtime') = ?
+          AND s.duration >= 1000
+        ORDER BY s.start
+    ''', (date_str,)).fetchall()
+
+    result = []
+    for r in rows:
+        s_dt = datetime.datetime.fromtimestamp(r['start'] / 1000)
+        e_dt = datetime.datetime.fromtimestamp((r['start'] + r['duration']) / 1000)
+        result.append({
+            'po':           r['po'],
+            'notes':        r['notes'] or '',
+            'start':        s_dt.strftime('%H:%M'),
+            'end':          e_dt.strftime('%H:%M'),
+            'duration_min': round(r['duration'] / 60000),
+        })
+    return result
 
 
 def _compute_day_gaps(conn, date_str):
@@ -112,6 +159,7 @@ def _compute_day_gaps(conn, date_str):
         SELECT start, duration
         FROM sessions
         WHERE date(start / 1000, 'unixepoch', 'localtime') = ?
+          AND duration >= 1000
         ORDER BY start
     ''', (date_str,)).fetchall()
 
@@ -262,20 +310,53 @@ def worked():
 
 @app.route('/api/orders')
 def orders():
+    from_str = request.args.get('from')
+    to_str   = request.args.get('to')
     conn = get_db()
-    rows = conn.execute('''
-        SELECT
-            o.id, o.po, o.notes, o.created, o.finished, o.finished_at, o.is_archive,
-            GROUP_CONCAT(DISTINCT ot.tag) AS tags,
-            COALESCE(SUM(s.duration), 0) AS total_ms,
-            COUNT(s.id) AS session_count,
-            SUM(CASE WHEN s.cnf = 1 THEN 1 ELSE 0 END) AS cnf_count
-        FROM orders o
-        LEFT JOIN order_tags ot ON ot.order_id = o.id
-        LEFT JOIN sessions s ON s.order_id = o.id
-        GROUP BY o.id
-        ORDER BY o.created DESC
-    ''').fetchall()
+
+    if from_str and to_str:
+        rows = conn.execute('''
+            SELECT
+                o.id, o.po, o.notes, o.created, o.finished, o.finished_at, o.is_archive,
+                GROUP_CONCAT(DISTINCT ot.tag) AS tags,
+                COALESCE(ss.total_ms, 0) AS total_ms,
+                COALESCE(ss.session_count, 0) AS session_count,
+                COALESCE(ss.cnf_count, 0) AS cnf_count
+            FROM orders o
+            LEFT JOIN order_tags ot ON ot.order_id = o.id
+            INNER JOIN (
+                SELECT order_id,
+                       SUM(duration) AS total_ms,
+                       COUNT(id) AS session_count,
+                       SUM(CASE WHEN cnf = 1 THEN 1 ELSE 0 END) AS cnf_count
+                FROM sessions
+                WHERE date(start / 1000, 'unixepoch', 'localtime') BETWEEN ? AND ?
+                GROUP BY order_id
+            ) ss ON ss.order_id = o.id
+            GROUP BY o.id
+            ORDER BY o.created DESC
+        ''', (from_str, to_str)).fetchall()
+    else:
+        rows = conn.execute('''
+            SELECT
+                o.id, o.po, o.notes, o.created, o.finished, o.finished_at, o.is_archive,
+                GROUP_CONCAT(DISTINCT ot.tag) AS tags,
+                COALESCE(ss.total_ms, 0) AS total_ms,
+                COALESCE(ss.session_count, 0) AS session_count,
+                COALESCE(ss.cnf_count, 0) AS cnf_count
+            FROM orders o
+            LEFT JOIN order_tags ot ON ot.order_id = o.id
+            LEFT JOIN (
+                SELECT order_id,
+                       SUM(duration) AS total_ms,
+                       COUNT(id) AS session_count,
+                       SUM(CASE WHEN cnf = 1 THEN 1 ELSE 0 END) AS cnf_count
+                FROM sessions
+                GROUP BY order_id
+            ) ss ON ss.order_id = o.id
+            GROUP BY o.id
+            ORDER BY o.created DESC
+        ''').fetchall()
     conn.close()
 
     return jsonify([{
@@ -407,7 +488,121 @@ def lifetime():
     })
 
 
+@app.route('/api/velocity')
+def velocity():
+    from_str = request.args.get('from')
+    to_str   = request.args.get('to')
+    conn = get_db()
+
+    if from_str and to_str:
+        rows = conn.execute('''
+            SELECT date(finished_at / 1000, 'unixepoch', 'localtime') AS finish_date
+            FROM orders
+            WHERE finished = 1 AND finished_at IS NOT NULL
+              AND date(finished_at / 1000, 'unixepoch', 'localtime') BETWEEN ? AND ?
+            ORDER BY finish_date
+        ''', (from_str, to_str)).fetchall()
+    else:
+        rows = conn.execute('''
+            SELECT date(finished_at / 1000, 'unixepoch', 'localtime') AS finish_date
+            FROM orders
+            WHERE finished = 1 AND finished_at IS NOT NULL
+            ORDER BY finish_date
+        ''').fetchall()
+    conn.close()
+
+    weekly = {}
+    for row in rows:
+        d = datetime.date.fromisoformat(row['finish_date'])
+        week_start = (d - datetime.timedelta(days=d.weekday())).isoformat()
+        weekly[week_start] = weekly.get(week_start, 0) + 1
+
+    return jsonify([{'week': k, 'count': v} for k, v in sorted(weekly.items())])
+
+
+@app.route('/api/orders/<int:order_id>/sessions')
+def order_sessions(order_id):
+    conn = get_db()
+    order = conn.execute('SELECT * FROM orders WHERE id = ?', (order_id,)).fetchone()
+    if not order:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+
+    sessions = conn.execute('''
+        SELECT start, duration, cnf FROM sessions
+        WHERE order_id = ? AND duration >= 1000
+        ORDER BY start
+    ''', (order_id,)).fetchall()
+
+    tags = [r['tag'] for r in conn.execute(
+        'SELECT tag FROM order_tags WHERE order_id = ?', (order_id,)
+    ).fetchall()]
+    conn.close()
+
+    result = []
+    for s in sessions:
+        s_dt = datetime.datetime.fromtimestamp(s['start'] / 1000)
+        e_dt = datetime.datetime.fromtimestamp((s['start'] + s['duration']) / 1000)
+        result.append({
+            'date':         s_dt.strftime('%Y-%m-%d'),
+            'start':        s_dt.strftime('%H:%M'),
+            'end':          e_dt.strftime('%H:%M'),
+            'duration_min': round(s['duration'] / 60000),
+            'duration_ms':  s['duration'],
+            'cnf':          bool(s['cnf']),
+        })
+
+    return jsonify({
+        'order': {
+            'id': order['id'], 'po': order['po'], 'notes': order['notes'],
+            'created': order['created'], 'finished': bool(order['finished']),
+            'finished_at': order['finished_at'], 'tags': tags,
+        },
+        'sessions': result,
+    })
+
+
+@app.route('/api/idle')
+def idle():
+    threshold_days = int(request.args.get('days', 7))
+    conn = get_db()
+
+    rows = conn.execute('''
+        SELECT o.id, o.po, o.notes,
+               GROUP_CONCAT(DISTINCT ot.tag) AS tags,
+               MAX(s.start) AS last_session_ms,
+               COUNT(s.id) AS session_count,
+               COALESCE(SUM(s.duration), 0) AS total_ms
+        FROM orders o
+        LEFT JOIN order_tags ot ON ot.order_id = o.id
+        LEFT JOIN sessions s ON s.order_id = o.id
+        WHERE o.finished = 0
+        GROUP BY o.id
+        ORDER BY COALESCE(last_session_ms, 0) ASC
+    ''').fetchall()
+    conn.close()
+
+    now_ms       = datetime.datetime.now().timestamp() * 1000
+    threshold_ms = threshold_days * 86_400_000
+
+    results = []
+    for r in rows:
+        last_ms = r['last_session_ms']
+        if last_ms is None or (now_ms - last_ms) > threshold_ms:
+            idle_days = None if last_ms is None else round((now_ms - last_ms) / 86_400_000)
+            results.append({
+                'id':            r['id'],
+                'po':            r['po'],
+                'notes':         r['notes'],
+                'tags':          r['tags'].split(',') if r['tags'] else [],
+                'idle_days':     idle_days,
+                'session_count': r['session_count'],
+                'total_ms':      r['total_ms'],
+            })
+
+    return jsonify({'orders': results, 'threshold_days': threshold_days})
+
+
 if __name__ == '__main__':
-    init_db()
     print('Starting PO Tracker Stats at http://localhost:5000')
     app.run(debug=True, port=5000)

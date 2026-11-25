@@ -1,18 +1,22 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'po_stats.db')
+# PO_STATS_DB lets Docker keep the database on a volume; defaults to the app folder
+DB_PATH = os.environ.get('PO_STATS_DB') or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'po_stats.db')
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
 def init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = get_db()
+    # WAL lets the dashboard keep reading while an import is writing
+    conn.execute('PRAGMA journal_mode=WAL')
     conn.executescript('''
         CREATE TABLE IF NOT EXISTS imports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,5 +51,10 @@ def init_db():
             FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
         );
     ''')
+    # Change detection for re-importing updated files (older databases lack these)
+    cols = {r['name'] for r in conn.execute('PRAGMA table_info(imports)')}
+    for name, decl in (('mtime_ns', 'INTEGER'), ('size', 'INTEGER'), ('ok', 'INTEGER DEFAULT 1')):
+        if name not in cols:
+            conn.execute(f'ALTER TABLE imports ADD COLUMN {name} {decl}')
     conn.commit()
     conn.close()

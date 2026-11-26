@@ -50,6 +50,11 @@ def init_db():
             cnf INTEGER DEFAULT 0,
             FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
     ''')
     # Change detection for re-importing updated files (older databases lack these)
     cols = {r['name'] for r in conn.execute('PRAGMA table_info(imports)')}

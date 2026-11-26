@@ -183,7 +183,7 @@
         .btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             height: 38px; padding: 0 16px; border-radius: 9px; border: 1px solid transparent;
-            font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+            font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; white-space: nowrap; text-decoration: none;
             transition: background 0.15s, border-color 0.15s, color 0.15s;
         }
         .btn .ic { width: 16px; height: 16px; }
@@ -415,6 +415,102 @@
         .cnf-no { font-size: 0.72rem; color: var(--text-muted); }
         .modal-empty { color: var(--text-muted); font-size: 0.875rem; padding: 12px 0; }
 
+        /* ── Month goal ────────────────────────────────────────────── */
+        [hidden] { display: none !important; }
+        .goal-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+        .goal-value { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+        .goal-of { color: var(--text-dim); font-size: 0.95rem; }
+        .goal-status { margin-left: auto; font-size: 0.86rem; font-weight: 600; }
+        .progress { position: relative; height: 12px; border-radius: 99px; background: var(--surface-2); margin: 14px 0 12px; }
+        .progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+        .progress-mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--text); }
+        .goal-facts { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 0.82rem; color: var(--text-dim); }
+        .goal-facts strong { color: var(--text); font-weight: 600; }
+        .goal-edit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .goal-edit .input { width: 96px; }
+
+        /* ── Period comparison ─────────────────────────────────────── */
+        .grid-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        @media (max-width: 860px) { .grid-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .stat { padding: 14px 18px; }
+        .stat-value { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+        .stat-delta { font-size: 0.76rem; margin-top: 4px; color: var(--text-muted); }
+        .stat-delta b { font-weight: 700; }
+        .delta-good { color: var(--green-text); } .delta-bad { color: var(--red-text); }
+
+        /* ── Orders toolbar ────────────────────────────────────────── */
+        .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .search { position: relative; }
+        .search .ic { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
+        .search .input { padding-left: 32px; width: 220px; }
+        .chip {
+            display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px;
+            border: 1px solid var(--blue-text); background: var(--blue-soft); color: var(--blue-text);
+            font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+        }
+        .chip .ic { width: 13px; height: 13px; }
+        .tag-btn { cursor: pointer; }
+        .tag-btn:hover { outline: 1px solid var(--blue-text); }
+        .show-more { margin-top: 12px; }
+        .po-blue { color: var(--blue-text); }
+
+        /* ── Forms (settings) ──────────────────────────────────────── */
+        .input {
+            height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border-strong);
+            background: var(--inset); color: var(--text); font: inherit; font-size: 0.86rem; min-width: 0;
+        }
+        .input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+        select.input { padding-right: 6px; }
+        .set-section { padding: 18px 0; border-top: 1px solid var(--border); }
+        .set-section:first-of-type { border-top: none; padding-top: 6px; }
+        .set-title {
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+            color: var(--text-muted); margin-bottom: 12px;
+        }
+        .set-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .set-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .field { display: flex; flex-direction: column; gap: 6px; font-size: 0.78rem; font-weight: 600; color: var(--text-dim); }
+        .field .input { width: 100%; }
+        .input-unit { display: flex; align-items: center; gap: 6px; }
+        .input-unit span { color: var(--text-muted); font-weight: 500; }
+        .set-help { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; line-height: 1.45; }
+        .day-picks { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+        .day-pick { position: relative; }
+        .day-pick input { position: absolute; opacity: 0; pointer-events: none; }
+        .day-pick span {
+            display: inline-block; padding: 6px 11px; border-radius: 8px; border: 1px solid var(--border-strong);
+            font-size: 0.8rem; font-weight: 600; color: var(--text-dim); cursor: pointer; user-select: none;
+        }
+        .day-pick input:checked + span { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .day-pick input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .month-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .month-row input[type="month"] { width: 170px; }
+        .month-row input[type="number"] { width: 100px; }
+        .switch {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.88rem;
+        }
+        .switch:last-child { border-bottom: none; }
+        .switch small { display: block; color: var(--text-muted); font-size: 0.76rem; margin-top: 2px; }
+        .switch input {
+            appearance: none; -webkit-appearance: none; position: relative; flex-shrink: 0; cursor: pointer;
+            width: 38px; height: 22px; border-radius: 99px; background: var(--border-strong); transition: background 0.15s;
+        }
+        .switch input::after {
+            content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+            background: #fff; transition: transform 0.15s;
+        }
+        .switch input:checked { background: var(--primary); }
+        .switch input:checked::after { transform: translateX(16px); }
+        .switch input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .set-actions {
+            position: sticky; bottom: -24px; display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+            margin: 0 -24px -24px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--surface);
+        }
+        .set-actions .btn-ghost { height: 38px; }
+        .form-error { margin-right: auto; color: var(--red-text); font-size: 0.82rem; }
+        .seg-future { background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--inset) 6px 12px); color: var(--text-muted); }
+
         /* ── Toast ─────────────────────────────────────────────────── */
         .toast {
             position: fixed; right: 24px; bottom: 24px; z-index: 1100; max-width: 380px;
@@ -459,6 +555,10 @@
             .btn-quick { flex: 1 1 auto; }
             .date-range input { flex: 1; min-width: 0; }
             .toast { left: 16px; right: 16px; bottom: 16px; }
+            .set-grid, .set-grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .toolbar, .search, .search .input { width: 100%; }
+            .goal-status { margin-left: 0; width: 100%; }
+            .month-row input[type="month"] { width: auto; flex: 1; }
         }
     </style>
 </head>
@@ -489,6 +589,12 @@
         <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
         <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
         <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+        <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+        <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></symbol>
+        <symbol id="i-compare" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
     </defs>
 </svg>
 
@@ -506,6 +612,9 @@
     <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle light/dark theme" title="Toggle theme">
         <svg class="ic"><use id="themeIcon" href="#i-sun"/></svg>
     </button>
+    <button class="icon-btn" id="settingsBtn" onclick="openSettings()" aria-label="Settings" title="Settings">
+        <svg class="ic"><use href="#i-settings"/></svg>
+    </button>
 </header>
 
 <!-- Sidebar -->
@@ -514,9 +623,9 @@
     <nav class="nav">
         <a class="nav-link active" href="#sec-overview"><svg class="ic"><use href="#i-dashboard"/></svg>Overview</a>
         <a class="nav-link" href="#sec-trends"><svg class="ic"><use href="#i-trend"/></svg>Trends</a>
-        <a class="nav-link" href="#sec-activity"><svg class="ic"><use href="#i-calendar"/></svg>Activity</a>
-        <a class="nav-link" href="#sec-gaps"><svg class="ic"><use href="#i-hourglass"/></svg>Inactive Gaps</a>
-        <a class="nav-link" href="#sec-patterns"><svg class="ic"><use href="#i-activity"/></svg>Patterns</a>
+        <a class="nav-link" href="#sec-activity" data-section="heatmap"><svg class="ic"><use href="#i-calendar"/></svg>Activity</a>
+        <a class="nav-link" href="#sec-gaps" data-section="gaps"><svg class="ic"><use href="#i-hourglass"/></svg>Inactive Gaps</a>
+        <a class="nav-link" href="#sec-patterns" data-section="patterns"><svg class="ic"><use href="#i-activity"/></svg>Patterns</a>
         <a class="nav-link" href="#sec-orders"><svg class="ic"><use href="#i-list"/></svg>Orders</a>
     </nav>
     <div class="sidebar-foot">
@@ -596,8 +705,33 @@
             </div>
         </div>
 
+        <!-- This month's hour goal (always the current month) -->
+        <section id="goalCard" class="card" data-section="goal">
+            <div class="card-head">
+                <div class="card-title"><svg class="ic c-green"><use href="#i-target"/></svg><span id="goalTitle">This Month's Goal</span></div>
+                <button class="btn btn-ghost" id="goalEditBtn" onclick="editGoal(true)">Edit goal</button>
+            </div>
+            <div id="goalEdit" class="goal-edit" hidden>
+                <span class="muted">Goal for <span id="goalEditMonth"></span>:</span>
+                <span class="input-unit"><input class="input" type="number" id="goalInput" min="0.5" step="0.5" aria-label="Goal in hours"><span>h</span></span>
+                <button class="btn btn-primary" style="height:32px" onclick="saveGoal()">Save</button>
+                <button class="btn btn-ghost" onclick="editGoal(false)">Cancel</button>
+                <button class="btn btn-ghost" id="goalResetBtn" onclick="saveGoal(null)">Use default</button>
+            </div>
+            <div id="goalBody"><div class="empty-note">Loading…</div></div>
+        </section>
+
+        <!-- Time not yet entered in SAP (a to-do list, not date-filtered) -->
+        <section id="sapCard" class="card" data-section="unconfirmed">
+            <div class="card-head">
+                <div class="card-title"><svg class="ic c-blue"><use href="#i-clipboard"/></svg>Not in SAP Yet</div>
+                <span class="muted" id="sapSummary"></span>
+            </div>
+            <div id="sapList"></div>
+        </section>
+
         <!-- Idle order alert (always global — not date-filtered) -->
-        <section id="idleCard" class="card attention" style="display:none">
+        <section id="idleCard" class="card attention" style="display:none" data-section="idle">
             <div class="card-head">
                 <div class="card-title"><svg class="ic c-amber"><use href="#i-alert"/></svg>Idle Active Orders</div>
                 <span class="muted">Active orders with no session in the last <span id="idleThresholdLabel">7</span> days</span>
@@ -609,6 +743,7 @@
     <!-- Period-filtered sections -->
     <div id="sec-trends" data-spy>
         <div class="eyebrow">Selected period <span class="js-period">· All Time</span></div>
+        <div class="grid grid-stats" id="compareGrid" data-section="compare"></div>
         <div class="grid grid-2-1">
             <section class="card">
                 <div class="card-head">
@@ -656,10 +791,19 @@
                 </div>
             </section>
         </div>
+
+        <!-- Typical time per tag (finished orders) -->
+        <section class="card" id="tagStatsCard" data-section="tag_stats">
+            <div class="card-head">
+                <div class="card-title"><svg class="ic c-purple"><use href="#i-ruler"/></svg>Typical Time per Tag</div>
+                <span class="muted">finished orders · total time per order</span>
+            </div>
+            <div id="tagStatsBody"></div>
+        </section>
     </div>
 
     <!-- Calendar heatmap -->
-    <section class="card" id="sec-activity" data-spy>
+    <section class="card" id="sec-activity" data-spy data-section="heatmap">
         <div class="card-head">
             <div class="card-title"><svg class="ic c-green"><use href="#i-calendar"/></svg>Activity Heatmap</div>
         </div>
@@ -667,10 +811,10 @@
     </section>
 
     <!-- Gap analysis (collapsible, driven by global date filter) -->
-    <section class="card" id="sec-gaps" data-spy>
+    <section class="card" id="sec-gaps" data-spy data-section="gaps">
         <div class="card-head">
             <div class="card-title"><svg class="ic c-red"><use href="#i-hourglass"/></svg>Inactive Gaps</div>
-            <span class="muted">work window 07:30–16:00, lunch excluded</span>
+            <span class="muted" id="gapWindowNote">work window 07:30–16:00, lunch excluded</span>
         </div>
         <div id="gapSummaryRow" class="gap-summary-row" style="display:none">
             <div class="mini-stats" id="gapSummaryPills"></div>
@@ -682,7 +826,7 @@
     </section>
 
     <!-- Inactive patterns -->
-    <section class="card" id="sec-patterns" data-spy>
+    <section class="card" id="sec-patterns" data-spy data-section="patterns">
         <div class="card-head">
             <div class="card-title"><svg class="ic c-amber"><use href="#i-activity"/></svg>Inactive Patterns</div>
         </div>
@@ -694,8 +838,26 @@
     <!-- Orders table -->
     <section class="card" id="sec-orders" data-spy>
         <div class="card-head">
-            <div class="card-title"><svg class="ic c-blue"><use href="#i-list"/></svg><span id="ordersTitle">All Orders</span></div>
-            <span class="muted" id="ordersCount"></span>
+            <div class="card-title"><svg class="ic c-blue"><use href="#i-list"/></svg><span id="ordersTitle">All Orders</span>
+                <span class="muted" id="ordersCount"></span></div>
+            <div class="toolbar">
+                <button class="chip" id="tagFilterChip" hidden onclick="filterTag('')" title="Clear tag filter">
+                    <span id="tagFilterText"></span><svg class="ic"><use href="#i-x"/></svg>
+                </button>
+                <label class="search"><svg class="ic"><use href="#i-search"/></svg>
+                    <input class="input" type="search" id="orderSearch" placeholder="Search PO, notes, tags" oninput="renderOrders()" aria-label="Search orders">
+                </label>
+                <select class="input" id="orderStatus" onchange="renderOrders()" aria-label="Order status">
+                    <option value="all">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="finished">Finished</option>
+                    <option value="pending">Not in SAP yet</option>
+                </select>
+                <a class="btn btn-ghost" id="timesheetBtn" data-section="timesheet" href="/api/timesheet.csv" download
+                   title="Time per day and order for the selected period, as a spreadsheet file">
+                    <svg class="ic"><use href="#i-download"/></svg>Timesheet CSV
+                </a>
+            </div>
         </div>
         <div class="table-wrap">
             <table>
@@ -729,14 +891,80 @@
     </div>
 </div>
 
+<!-- Settings -->
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <button class="icon-btn modal-close" onclick="closeSettings()" title="Close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+        <div class="modal-po-title" id="settingsTitle">Settings</div>
+
+        <div class="set-section">
+            <div class="set-title">Work day</div>
+            <div class="set-grid">
+                <label class="field">Starts<input class="input" type="time" id="setWorkStart"></label>
+                <label class="field">Ends<input class="input" type="time" id="setWorkEnd"></label>
+                <label class="field">Lunch from<input class="input" type="time" id="setLunchStart"></label>
+                <label class="field">Lunch to<input class="input" type="time" id="setLunchEnd"></label>
+            </div>
+            <div class="day-picks" id="setDays" role="group" aria-label="Work days"></div>
+            <div class="set-help">Inactive gaps are measured inside these hours, lunch excluded. Work days count toward targets and goals.</div>
+        </div>
+
+        <div class="set-section">
+            <div class="set-title">Targets</div>
+            <div class="set-grid three">
+                <label class="field">Daily target
+                    <span class="input-unit"><input class="input" type="number" id="setDailyTarget" min="0.25" max="24" step="0.25"><span>h</span></span></label>
+                <label class="field">Ignore breaks under
+                    <span class="input-unit"><input class="input" type="number" id="setMinGap" min="0" max="240" step="1"><span>min</span></span></label>
+                <label class="field">Flag orders idle after
+                    <span class="input-unit"><input class="input" type="number" id="setIdleDays" min="1" max="365" step="1"><span>days</span></span></label>
+            </div>
+            <div class="set-help">The daily target sets the Avg Hours / Day gauge and the inactive-gaps summary.</div>
+        </div>
+
+        <div class="set-section" id="setGoalSection">
+            <div class="set-title">Monthly goal</div>
+            <label class="field" style="max-width:220px">Usual monthly goal
+                <span class="input-unit"><input class="input" type="number" id="setMonthlyGoal" min="0.5" step="0.5" placeholder="Not set"><span>h</span></span></label>
+            <div class="set-help" id="setMonthlyHelp"></div>
+            <div class="field" style="margin-top:16px">Goals for specific months</div>
+            <div id="setMonthRows" style="margin-top:8px"></div>
+            <button class="btn btn-ghost" onclick="addMonthRow()">+ Add a month</button>
+        </div>
+
+        <div class="set-section">
+            <div class="set-title">Dashboard sections</div>
+            <div id="setSections"></div>
+        </div>
+
+        <div class="set-actions">
+            <span class="form-error" id="settingsError" role="alert"></span>
+            <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
+            <button class="btn btn-primary" id="settingsSave" onclick="saveSettings()">Save</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-// ── Constants ────────────────────────────────────────────────────
-const WORK_START_MIN = 7 * 60 + 30;
-const WORK_END_MIN   = 16 * 60;
-const LUNCH_START    = 12 * 60;
-const LUNCH_END      = 12 * 60 + 30;
+// ── Work day (replaced by the saved settings on load) ────────────
+let SETTINGS = null;
+let WORK_START_MIN = 7 * 60 + 30;
+let WORK_END_MIN   = 16 * 60;
+let LUNCH_START    = 12 * 60;
+let LUNCH_END      = 12 * 60 + 30;
+let DAILY_TARGET_H = 7.5;
+const DOW_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const sectionOn = key => !SETTINGS || SETTINGS.sections[key] !== false;
+const fmtH = h => `${+(+h).toFixed(2)}h`;
+const fmtHM = min => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(Math.round(min % 60)).padStart(2, '0')}`;
+// Hours in the work window, lunch excluded
+function windowHours() {
+    const lunch = Math.max(0, Math.min(LUNCH_END, WORK_END_MIN) - Math.max(LUNCH_START, WORK_START_MIN));
+    return (WORK_END_MIN - WORK_START_MIN - lunch) / 60;
+}
 
 // Series colours — mid-tones that read on both the dark and light theme
 const BLUE = '#3b82f6', GREEN = '#10b981', AMBER = '#f59e0b', RED = '#ef4444', PURPLE = '#8b5cf6', CYAN = '#06b6d4';
@@ -1009,12 +1237,15 @@ function applyFilter() {
     const from = document.getElementById('filterFrom').value;
     const to   = document.getElementById('filterTo').value;
     document.querySelectorAll('.js-period').forEach(el => el.textContent = `· ${periodText(from, to)}`);
+    document.getElementById('timesheetBtn').href = '/api/timesheet.csv' + (from && to ? `?from=${from}&to=${to}` : '');
     loadCharts(from, to);
     loadGauge(from, to);
-    loadGaps(from, to);
-    loadPatterns(from, to);
+    if (sectionOn('gaps')) loadGaps(from, to);
+    if (sectionOn('patterns')) loadPatterns(from, to);
     loadOrders(from, to);
     loadVelocity(from, to);
+    if (sectionOn('compare')) loadCompare(from, to);
+    if (sectionOn('tag_stats')) loadTagStats(from, to);
 }
 
 // ── Charts (tag + day) ────────────────────────────────────────────
@@ -1157,7 +1388,12 @@ async function loadGauge(from, to) {
 
 function renderGauge(totalMs, targetMs, workingDays, activeDays) {
     activeDays = activeDays ?? workingDays;  // fallback for any old callers
-    const MAX_H  = 8;
+    // Zones follow the daily target T: red below 80% of T, amber up to half an
+    // hour short, light green up to T, green beyond (7.5h target → 6 / 7 / 7.5 / 8h)
+    const T      = DAILY_TARGET_H;
+    const MAX_H  = Math.max(windowHours(), T + 0.5);
+    const LOW_H  = Math.max(0, Math.min(T * 0.8, T - 0.5));
+    const NEAR_H = Math.max(LOW_H, T - 0.5);
     const canvas = document.getElementById('gaugeChart');
     const ctx    = canvas.getContext('2d');
     const font   = getComputedStyle(document.body).fontFamily;
@@ -1176,8 +1412,7 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
 
     // avgH: average hours over days that had sessions (inactive days excluded)
     const avgH          = activeDays > 0 ? (totalMs / 3600000) / activeDays : 0;
-    const BOOKING_TARGET_H = 7.5;
-    const pct  = activeDays > 0 ? totalMs / (activeDays * BOOKING_TARGET_H * 3600000) : 0;
+    const pct  = activeDays > 0 ? totalMs / (activeDays * T * 3600000) : 0;
     // Map hours to canvas angle: h=0 → π (9 o'clock), h=MAX_H → 2π (3 o'clock), through 12 o'clock
     const h2a  = h => Math.PI + (Math.min(h, MAX_H) / MAX_H) * Math.PI;
 
@@ -1187,10 +1422,10 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
     ctx.lineWidth = trackW;
     ctx.lineCap   = 'butt';
     const zones = [
-        { from: 0,    to: 6,     color: hexA(RED, 0.8) },     // well behind
-        { from: 6,    to: 7,     color: hexA(AMBER, 0.85) },  // below target
-        { from: 7,    to: 7.5,   color: hexA(GREEN, 0.55) },  // close
-        { from: 7.5,  to: MAX_H, color: GREEN },              // on/above 7.5h target
+        { from: 0,      to: LOW_H,  color: hexA(RED, 0.8) },     // well behind
+        { from: LOW_H,  to: NEAR_H, color: hexA(AMBER, 0.85) },  // below target
+        { from: NEAR_H, to: T,      color: hexA(GREEN, 0.55) },  // close
+        { from: T,      to: MAX_H,  color: GREEN },              // on/above target
     ];
     for (const z of zones) {
         ctx.beginPath();
@@ -1202,7 +1437,7 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
     // ── Separator ticks at zone boundaries ────────────────────────────
     ctx.strokeStyle = cssVar('--surface');
     ctx.lineWidth   = 3;
-    for (const h of [6, 7, 7.5]) {
+    for (const h of [LOW_H, NEAR_H, T]) {
         const a = h2a(h);
         ctx.save();
         ctx.translate(cx, cy);
@@ -1220,7 +1455,7 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
     ctx.font         = `500 12px ${font}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    for (const [h, txt] of [[0, '0h'], [6, '6h'], [7.5, '7.5h'], [MAX_H, '8h']]) {
+    for (const [h, txt] of [[0, '0h'], [LOW_H, fmtH(LOW_H)], [T, fmtH(T)], [MAX_H, fmtH(MAX_H)]]) {
         const a  = h2a(h);
         const lx = cx + labelR * Math.cos(a);
         // Push 0h / 8h labels slightly below the arc endpoints for readability
@@ -1251,23 +1486,22 @@ function renderGauge(totalMs, targetMs, workingDays, activeDays) {
 
     // ── Text below arc ────────────────────────────────────────────────
     // Needle and zones are based on average hours per working day
-    const zoneLabel = avgH >= 7.5  ? 'On Target'
-                    : avgH >= 6.5  ? 'Getting There'
-                    : avgH >= 6    ? 'Below Target'
-                    : activeDays   ? 'Behind'
-                    : 'No Data';
-    const zoneColor = avgH >= 7.5  ? cssVar('--green-text')
-                    : avgH >= 6.5  ? cssVar('--green-text')
-                    : avgH >= 6    ? cssVar('--amber-text')
-                    : activeDays   ? cssVar('--red-text')
-                    : cssVar('--text-muted');
+    const zoneLabel = !activeDays     ? 'No Data'
+                    : avgH >= T       ? 'On Target'
+                    : avgH >= NEAR_H  ? 'Almost There'
+                    : avgH >= LOW_H   ? 'Below Target'
+                    : 'Behind';
+    const zoneColor = !activeDays     ? cssVar('--text-muted')
+                    : avgH >= NEAR_H  ? cssVar('--green-text')
+                    : avgH >= LOW_H   ? cssVar('--amber-text')
+                    : cssVar('--red-text');
 
     const primaryText = activeDays <= 1
         ? fmtMs(totalMs)
         : fmtMs(Math.round(totalMs / activeDays)) + ' avg/day';
 
     const pctVal  = Math.round(pct * 100);
-    const pctStr  = pctVal > 100 ? `+${pctVal - 100}% over target` : `${pctVal}% of 7.5h`;
+    const pctStr  = pctVal > 100 ? `+${pctVal - 100}% over target` : `${pctVal}% of ${fmtH(T)}`;
     const subText = activeDays > 0
         ? `${pctStr} · total ${fmtMs(totalMs)} · ${activeDays} day${activeDays !== 1 ? 's' : ''}`
         : 'No sessions in this period';
@@ -1306,37 +1540,70 @@ function ordersTableTitle(from, to) {
     return "All Orders";
 }
 
+let ordersAll = [], ordersRange = {}, orderTagFilter = '';
+
 async function loadOrders(from, to) {
     let url = '/api/orders';
     if (from && to) url += `?from=${from}&to=${to}`;
     const r = await fetch(url);
-    const orders = await r.json();
+    ordersAll = await r.json();
+    ordersRange = { from, to };
     document.getElementById('ordersTitle').textContent = ordersTableTitle(from, to);
-    document.getElementById('ordersCount').textContent = `${orders.length} order${orders.length !== 1 ? 's' : ''}`;
-    const tbody = document.getElementById('ordersBody');
+    renderOrders();
+    renderHistogram(ordersAll);
+}
 
-    if (!orders.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty-note">${from && to
-            ? 'No orders worked in this period.'
-            : 'No orders yet — import a JSON file to get started.'}</td></tr>`;
-        renderHistogram([]);
+// Search, status and tag filters only narrow the table; charts keep the whole period
+function renderOrders() {
+    const q  = document.getElementById('orderSearch').value.trim().toLowerCase();
+    const st = document.getElementById('orderStatus').value;
+    const list = ordersAll.filter(o =>
+        (!q || o.po.toLowerCase().includes(q) || (o.notes || '').toLowerCase().includes(q)
+            || o.tags.some(t => t.toLowerCase().includes(q)))
+        && (st === 'all' || (st === 'active' && !o.finished) || (st === 'finished' && o.finished)
+            || (st === 'pending' && o.pending_count > 0))
+        && (!orderTagFilter || o.tags.includes(orderTagFilter)));
+
+    const n = ordersAll.length;
+    document.getElementById('ordersCount').textContent = list.length === n
+        ? `· ${n} order${n !== 1 ? 's' : ''}` : `· ${list.length} of ${n}`;
+    document.getElementById('tagFilterChip').hidden = !orderTagFilter;
+    document.getElementById('tagFilterText').textContent = `Tag: ${orderTagFilter}`;
+
+    const tbody = document.getElementById('ordersBody');
+    if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-note">${
+            n ? 'No orders match these filters.'
+              : ordersRange.from && ordersRange.to ? 'No orders worked in this period.'
+              : 'No orders yet — import a JSON file to get started.'}</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = orders.map(o => `
-        <tr class="clickable" onclick="openDrilldown(${o.id})" title="Click to view session history">
+    tbody.innerHTML = list.map(o => `
+        <tr class="clickable" data-id="${o.id}" title="Click to view session history">
             <td><span class="po-num">${esc(o.po)}</span></td>
-            <td>${o.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</td>
+            <td>${o.tags.map(t => `<span class="tag tag-btn" data-tag="${esc(t)}" title="Show only ${esc(t)}">${esc(t)}</span>`).join('')}</td>
             <td class="num">${o.session_count}</td>
-            <td class="num cell-dim">${o.cnf_count}/${o.session_count}</td>
+            <td class="num cell-dim${o.pending_count ? ' c-amber' : ''}" title="${o.pending_count ? `${o.pending_count} not in SAP yet` : 'All in SAP'}">${o.cnf_count}/${o.session_count}</td>
             <td style="font-weight:600">${fmtMs(o.total_ms)}</td>
             <td><span class="badge ${o.finished ? 'badge-finished' : 'badge-active'}">${o.finished ? 'Finished' : 'Active'}</span></td>
             <td class="cell-dim">${fmtDate(o.created)}</td>
         </tr>
     `).join('');
-
-    renderHistogram(orders);
 }
+
+function filterTag(tag) {
+    orderTagFilter = tag;
+    renderOrders();
+}
+
+// One listener for the whole table: a tag filters, anywhere else opens the order
+document.getElementById('ordersBody').addEventListener('click', e => {
+    const tag = e.target.closest('.tag-btn');
+    if (tag) return filterTag(tag.dataset.tag);
+    const row = e.target.closest('tr[data-id]');
+    if (row) openDrilldown(+row.dataset.id);
+});
 
 // ── Import ────────────────────────────────────────────────────────
 async function importFiles() {
@@ -1507,26 +1774,35 @@ async function loadGaps(from, to) {
     }
     toggleBtn.style.display = '';
 
-    const TARGET_MIN   = 450;                                          // 7.5h booking target
-    const WINDOW_MIN   = 480;                                          // 8h work window
+    const TARGET_MIN   = Math.round(DAILY_TARGET_H * 60);              // daily booking target
+    const WINDOW_MIN   = Math.round(windowHours() * 60);               // work window, lunch excluded
+    // Window minutes that have passed: the whole window, except today (up to gap_until)
+    const passedMin = end => {
+        end = Math.min(end, WORK_END_MIN);
+        const lunch = Math.max(0, Math.min(LUNCH_END, end) - Math.max(LUNCH_START, WORK_START_MIN));
+        return Math.max(0, end - WORK_START_MIN - lunch);
+    };
+    const windowSoFar  = days.filter(d => d.has_sessions).reduce((sum, d) => sum + passedMin(timeToMin(d.gap_until)), 0);
     const bookedMin    = summary.total_worked_min;
     const shortfallMin = Math.max(0, TARGET_MIN * summary.days_with_data - bookedMin);
-    const unbookedMin  = Math.max(0, WINDOW_MIN  * summary.days_with_data - bookedMin);
+    const unbookedMin  = Math.max(0, windowSoFar - bookedMin);
 
     const mini = (label, value, cls = '') =>
         `<div class="mini"><div class="mini-label">${label}</div><div class="mini-value ${cls}">${value}</div></div>`;
     summaryPills.innerHTML =
         mini('Days tracked', summary.days_with_data) +
         mini('Booked', fmtMin(bookedMin)) +
-        mini('Unbooked (8h)', fmtMin(unbookedMin), 'c-red') +
-        mini('Short of 7.5h', fmtMin(shortfallMin), 'c-amber');
+        mini(`Unbooked (${fmtH(WINDOW_MIN / 60)})`, fmtMin(unbookedMin), 'c-red') +
+        mini(`Short of ${fmtH(DAILY_TARGET_H)}`, fmtMin(shortfallMin), 'c-amber');
 
+    const hasToday = days.some(d => d.has_sessions && timeToMin(d.gap_until) < WORK_END_MIN);
     const legendHtml = `
         <div class="legend">
             <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> Working</div>
             <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Inactive gap</div>
             <div class="legend-item"><div class="legend-dot" style="background:var(--lunch)"></div> Lunch (excluded)</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div> Overtime past 16:00</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div> Overtime past ${fmtHM(WORK_END_MIN)}</div>
+            ${hasToday ? '<div class="legend-item"><div class="legend-dot seg-future"></div> Rest of today</div>' : ''}
         </div>`;
 
     const dayBlocksHtml = days.filter(day => day.has_sessions).map(day => {
@@ -1560,7 +1836,7 @@ async function loadGaps(from, to) {
                     <div class="gap-item-dur">${g.duration_min} min inactive</div>
                 </div>`).join('');
 
-        const axisEnd = timeToMin(day.day_end) > WORK_END_MIN ? '16:00+' : '16:00';
+        const axisEnd = fmtHM(WORK_END_MIN) + (timeToMin(day.day_end) > WORK_END_MIN ? '+' : '');
 
         return `<div class="day-block">
                     <div class="day-header">
@@ -1570,7 +1846,7 @@ async function loadGaps(from, to) {
                         <span class="gap-badge ${badgeClass}">${badgeText}</span>
                     </div>
                     <div class="timeline">${buildTimeline(day)}</div>
-                    <div class="timeline-axis"><span>07:30</span><span>${axisEnd}</span></div>
+                    <div class="timeline-axis"><span>${fmtHM(WORK_START_MIN)}</span><span>${axisEnd}</span></div>
                     ${buildSwimlanesHtml(day)}
                     <div class="gap-list">${gapListHtml}</div>
                 </div>`;
@@ -1614,9 +1890,15 @@ function buildTimeline(day) {
         cursor = ivEnd;
     }
 
-    // Remaining gap within work window (left before 4pm)
-    if (cursor < WORK_END_MIN) {
-        pushGapSegs(cursor, WORK_END_MIN, segs);
+    // Remaining gap within work window (left early). Today it only runs to
+    // now (gap_until); the rest of the day is shown as not happened yet.
+    const gapUntil = Math.min(day.gap_until ? timeToMin(day.gap_until) : WORK_END_MIN, WORK_END_MIN);
+    if (cursor < gapUntil) {
+        pushGapSegs(cursor, gapUntil, segs);
+    }
+    const futureStart = Math.max(cursor, gapUntil);
+    if (futureStart < WORK_END_MIN) {
+        segs.push({ type: 'future', start: futureStart, end: WORK_END_MIN });
     }
 
     return segs.map(seg => {
@@ -1625,6 +1907,7 @@ function buildTimeline(day) {
         const label = seg.type === 'work'     ? fmtMs(dur * 60000)
                     : seg.type === 'overtime'  ? `+${Math.round(dur)}m OT`
                     : seg.type === 'lunch'     ? 'Lunch'
+                    : seg.type === 'future'    ? 'Rest of today'
                     : `${Math.round(dur)}m`;
         const show = parseFloat(pct) > 7 ? label : '';
         return `<div class="seg seg-${seg.type}" style="width:${pct}%" title="${label}">${show}</div>`;
@@ -1632,7 +1915,7 @@ function buildTimeline(day) {
 }
 
 function pushGapSegs(gapStart, gapEnd, segs) {
-    if (gapEnd <= LUNCH_START || gapStart >= LUNCH_END) {
+    if (LUNCH_END <= LUNCH_START || gapEnd <= LUNCH_START || gapStart >= LUNCH_END) {
         if (gapEnd > gapStart) segs.push({ type: 'gap', start: gapStart, end: gapEnd });
     } else {
         if (gapStart < LUNCH_START)
@@ -1812,7 +2095,7 @@ function renderHistogram(orders) {
 
 // ── Idle order alert ──────────────────────────────────────────────
 async function loadIdle() {
-    const r = await fetch('/api/idle?days=7');
+    const r = await fetch('/api/idle');
     const d = await r.json();
     const card = document.getElementById('idleCard');
     document.getElementById('idleThresholdLabel').textContent = d.threshold_days;
@@ -1883,7 +2166,7 @@ document.getElementById('drillModal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeModal();
 });
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); toggleNav(false); }
+    if (e.key === 'Escape') { closeModal(); closeSettings(); toggleNav(false); }
 });
 
 // ── Gap collapse toggle ───────────────────────────────────────────
@@ -1897,10 +2180,352 @@ function toggleGapBody() {
     label.textContent   = open ? 'Hide breakdown' : 'Show breakdown';
 }
 
+// ── Month goal ────────────────────────────────────────────────────
+let goalData = null;
+
+async function loadGoal() {
+    if (!sectionOn('goal')) return;
+    goalData = await (await fetch('/api/goal')).json();
+    renderGoal();
+}
+
+const monthLong = m => new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+function renderGoal() {
+    const g = goalData;
+    const trackedH = g.tracked_ms / 3600000;
+    const reached  = trackedH >= g.goal_h;
+    const color = reached || g.ahead_h >= 0 ? GREEN : trackedH >= g.expected_h * 0.9 ? AMBER : RED;
+    const status = reached ? '<span class="c-green">Goal reached</span>'
+        : g.work_days_done === 0 ? '<span class="muted">Month just started</span>'
+        : g.ahead_h >= 0 ? `<span class="c-green">${fmtMs(g.ahead_h * 3600000)} ahead of pace</span>`
+        : `<span class="${color === AMBER ? 'c-amber' : 'c-red'}">${fmtMs(-g.ahead_h * 3600000)} behind pace</span>`;
+    const source = g.goal_source === 'month' ? `your goal for ${monthLong(g.month)}`
+        : g.goal_source === 'default' ? 'your usual monthly goal'
+        : `${fmtH(DAILY_TARGET_H)} × ${g.work_days} work days`;
+    const markPct = g.goal_h ? Math.min(100, g.expected_h / g.goal_h * 100) : 0;
+
+    document.getElementById('goalTitle').textContent = `${monthLong(g.month)} Goal`;
+    document.getElementById('goalBody').innerHTML = `
+        <div class="goal-top">
+            <span class="goal-value">${fmtMs(g.tracked_ms)}</span>
+            <span class="goal-of">of ${fmtH(g.goal_h)} · ${g.pct}%</span>
+            <span class="goal-status">${status}</span>
+        </div>
+        <div class="progress" title="The line marks where a steady pace would be by today">
+            <div class="progress-fill" style="width:${Math.min(100, g.pct)}%;background:${color}"></div>
+            ${g.work_days_done && !reached ? `<div class="progress-mark" style="left:${markPct}%"></div>` : ''}
+        </div>
+        <div class="goal-facts">
+            <span>Expected by today <strong>${fmtMs(g.expected_h * 3600000)}</strong></span>
+            <span>Remaining <strong>${fmtMs(g.remaining_h * 3600000)}</strong></span>
+            <span>Work days left <strong>${g.work_days_left}</strong></span>
+            ${g.per_day_h !== null && !reached ? `<span>Needed per day <strong>${fmtMs(g.per_day_h * 3600000)}</strong></span>` : ''}
+            <span class="muted">Goal: ${source}</span>
+        </div>`;
+    document.getElementById('goalResetBtn').hidden = g.goal_source !== 'month';
+}
+
+function editGoal(open) {
+    document.getElementById('goalEdit').hidden = !open;
+    document.getElementById('goalEditBtn').hidden = open;
+    if (open) {
+        document.getElementById('goalEditMonth').textContent = monthLong(goalData.month);
+        const input = document.getElementById('goalInput');
+        input.value = goalData.goal_h;
+        input.focus();
+        input.select();
+    }
+}
+
+document.getElementById('goalInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveGoal();
+    if (e.key === 'Escape') { e.stopPropagation(); editGoal(false); }
+});
+
+// Saves (or with null, removes) this month's own goal
+async function saveGoal(hours = document.getElementById('goalInput').value) {
+    if (await putSettings({ month_goals: { [goalData.month]: hours === '' ? null : hours } })) {
+        editGoal(false);
+        loadGoal();
+        showToast(`${icon('check', 'c-green')}<span>${hours === null ? 'Using the usual goal again' : 'Goal saved'}</span>`, 'ok');
+    }
+}
+
+// ── Not in SAP yet ────────────────────────────────────────────────
+const SAP_LIMIT = 6;
+let sapShowAll = false;
+
+async function loadUnconfirmed() {
+    if (!sectionOn('unconfirmed')) return;
+    const d = await (await fetch('/api/unconfirmed')).json();
+    const n = d.orders.length;
+    document.getElementById('sapSummary').textContent = n
+        ? `${fmtMs(d.total_ms)} across ${n} order${n !== 1 ? 's' : ''}, oldest first` : '';
+    const list = document.getElementById('sapList');
+    if (!n) {
+        list.innerHTML = `<div class="no-gaps" style="display:flex;align-items:center;gap:8px">${icon('check')} All tracked time is entered in SAP.</div>`;
+        return;
+    }
+    const shown = sapShowAll ? d.orders : d.orders.slice(0, SAP_LIMIT);
+    list.innerHTML = shown.map(o => `
+        <div class="idle-row" onclick="openDrilldown(${o.id})" title="Click to view session history">
+            <span class="idle-po po-blue">${esc(o.po)}</span>
+            <span class="idle-badge idle-badge-warn">${o.pending_count} session${o.pending_count !== 1 ? 's' : ''}</span>
+            ${o.finished ? '<span class="badge badge-finished">Finished</span>' : ''}
+            ${o.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}
+            ${o.notes ? `<span class="idle-notes">${esc(o.notes)}</span>` : ''}
+            <span class="idle-time">since ${fmtDate(o.oldest_ms)} · <strong>${fmtMs(o.pending_ms)}</strong></span>
+        </div>`).join('')
+        + (n > SAP_LIMIT ? `<button class="btn btn-ghost show-more" onclick="sapShowAll = !sapShowAll; loadUnconfirmed()">
+            ${sapShowAll ? 'Show fewer' : `Show all ${n}`}</button>` : '');
+}
+
+// ── Compare with the previous period ──────────────────────────────
+const isoDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return isoDate(d); };
+
+// The matching earlier range. Ranges reaching into the future are compared
+// only up to today, so "this week so far" is set against the same days last week.
+function previousRange(from, to) {
+    const preset = document.querySelector('.filter-preset.active')?.dataset.preset;
+    const today = isoDate(new Date());
+    const end = to > today ? today : to;
+    if (end < from) return null;
+    if (preset === 'today') {
+        let d = from;
+        for (let i = 0; i < 7; i++) {
+            d = addDays(d, -1);
+            if (SETTINGS.work_days.includes((new Date(d + 'T00:00:00').getDay() + 6) % 7)) break;
+        }
+        return { from: d, to: d, end, label: `vs ${fmtDateLabel(d)}` };
+    }
+    if (preset === 'week')     return { from: addDays(from, -7), to: addDays(end, -7), end, label: 'vs same days last week' };
+    if (preset === 'lastWeek') return { from: addDays(from, -7), to: addDays(end, -7), end, label: 'vs the week before' };
+    if (preset === 'month') {
+        const f = new Date(from + 'T00:00:00'), e = new Date(end + 'T00:00:00');
+        const prevLast = new Date(f.getFullYear(), f.getMonth(), 0).getDate();
+        return { from: isoDate(new Date(f.getFullYear(), f.getMonth() - 1, 1)),
+                 to: isoDate(new Date(f.getFullYear(), f.getMonth() - 1, Math.min(e.getDate(), prevLast))),
+                 end, label: 'vs same days last month' };
+    }
+    const len = Math.round((new Date(end + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000) + 1;
+    return { from: addDays(from, -len), to: addDays(from, -1), end, label: `vs previous ${len} day${len !== 1 ? 's' : ''}` };
+}
+
+async function loadCompare(from, to) {
+    const prev = from && to ? previousRange(from, to) : null;
+    const period = (f, t) => fetch(`/api/period?from=${f}&to=${t}`).then(r => r.json());
+    const [cur, old] = await Promise.all([
+        period(from || '0000-01-01', prev ? prev.end : (to || '9999-12-31')),
+        prev ? period(prev.from, prev.to) : null,
+    ]);
+    const avg = p => p.active_days ? p.tracked_ms / p.active_days : 0;
+
+    // lowerIsBetter flips the colours (less inactive time is good)
+    const delta = (a, b, fmt, lowerIsBetter = false) => {
+        if (!old) return from && to ? 'no earlier data to compare' : 'all imported data';
+        if (!old.active_days) return `no data ${prev.label.replace(/^vs /, 'for ')}`;
+        const diff = a - b;
+        if (Math.abs(diff) < 1e-9) return `no change ${prev.label}`;
+        const good = (diff > 0) !== lowerIsBetter;
+        return `<b class="${good ? 'delta-good' : 'delta-bad'}">${diff > 0 ? '▲' : '▼'} ${fmt(Math.abs(diff))}</b> ${prev.label}`;
+    };
+    const stat = (label, value, d) =>
+        `<div class="card stat"><div class="kpi-label">${label}</div><div class="stat-value">${value}</div><div class="stat-delta">${d}</div></div>`;
+
+    document.getElementById('compareGrid').innerHTML =
+        stat('Tracked', fmtMs(cur.tracked_ms), delta(cur.tracked_ms, old?.tracked_ms, fmtMs)) +
+        stat('Avg / active day', fmtMs(Math.round(avg(cur))), delta(avg(cur), old && avg(old), v => fmtMs(Math.round(v)))) +
+        stat('Orders worked', `${cur.orders} <span class="muted">· ${cur.finished} finished</span>`, delta(cur.orders, old?.orders, v => v)) +
+        stat('Inactive', fmtMin(cur.gap_min), delta(cur.gap_min, old?.gap_min, fmtMin, true));
+}
+
+// ── Typical time per tag ──────────────────────────────────────────
+const TAG_STATS_LIMIT = 10;
+let tagStatsShowAll = false, tagStatsRows = [];
+
+async function loadTagStats(from, to) {
+    tagStatsRows = await (await fetch('/api/tag_stats' + (from && to ? `?from=${from}&to=${to}` : ''))).json();
+    renderTagStats();
+}
+
+function renderTagStats() {
+    const body = document.getElementById('tagStatsBody');
+    const n = tagStatsRows.length;
+    if (!n) {
+        body.innerHTML = '<div class="empty-note">No finished orders in this period.</div>';
+        return;
+    }
+    const rows = tagStatsShowAll ? tagStatsRows : tagStatsRows.slice(0, TAG_STATS_LIMIT);
+    body.innerHTML = `
+        <div class="table-wrap" style="margin-bottom:0">
+            <table>
+                <thead><tr><th>Tag</th><th class="num">Orders</th><th>Median</th><th>Average</th><th>Shortest – longest</th></tr></thead>
+                <tbody>${rows.map(t => `
+                    <tr>
+                        <td><span class="tag">${esc(t.tag)}</span></td>
+                        <td class="num">${t.orders}</td>
+                        <td style="font-weight:600">${fmtMs(t.median_ms)}</td>
+                        <td>${fmtMs(t.avg_ms)}</td>
+                        <td class="cell-dim">${fmtMs(t.min_ms)} – ${fmtMs(t.max_ms)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        ${n > TAG_STATS_LIMIT ? `<button class="btn btn-ghost show-more" onclick="tagStatsShowAll = !tagStatsShowAll; renderTagStats()">
+            ${tagStatsShowAll ? 'Show fewer' : `Show all ${n} tags`}</button>` : ''}`;
+}
+
+// ── Settings ──────────────────────────────────────────────────────
+const SECTION_LABELS = {
+    goal:        ["This month's goal", 'Progress toward the monthly hour goal, with the pace you need'],
+    unconfirmed: ['Not in SAP yet', 'Orders with time that still needs a CNF'],
+    idle:        ['Idle active orders', "Unfinished orders you haven't touched in a while"],
+    compare:     ['Compare with previous period', 'Totals for the selected period, with the change since the one before'],
+    tag_stats:   ['Typical time per tag', 'Median and average time per finished order, per tag'],
+    heatmap:     ['Activity heatmap', 'Calendar of hours per day'],
+    gaps:        ['Inactive gaps', 'Gaps in each work day, with a timeline'],
+    patterns:    ['Inactive patterns', 'When in the day and week gaps tend to happen'],
+    timesheet:   ['Timesheet export', 'A CSV of time per day and order, from the orders table'],
+};
+
+async function loadSettings() {
+    SETTINGS = await (await fetch('/api/settings')).json();
+    applySettings();
+}
+
+function applySettings() {
+    const s = SETTINGS;
+    WORK_START_MIN = timeToMin(s.work_start);
+    WORK_END_MIN   = timeToMin(s.work_end);
+    LUNCH_START    = timeToMin(s.lunch_start);
+    LUNCH_END      = timeToMin(s.lunch_end);
+    DAILY_TARGET_H = s.daily_target_h;
+    document.querySelectorAll('[data-section]').forEach(el => { el.hidden = !sectionOn(el.dataset.section); });
+    document.getElementById('gapWindowNote').textContent =
+        `work window ${s.work_start}–${s.work_end}${LUNCH_END > LUNCH_START ? ', lunch excluded' : ''}`;
+    document.getElementById('idleThresholdLabel').textContent = s.idle_days;
+}
+
+// Saves a partial change; returns true on success, else shows why
+async function putSettings(changes, errorEl = null) {
+    try {
+        const r = await fetch('/api/settings', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `the server answered ${r.status}`);
+        SETTINGS = d;
+        applySettings();
+        return true;
+    } catch (e) {
+        if (errorEl) errorEl.textContent = e.message;
+        else showToast(`${icon('alert', 'c-red')}<span>${esc(e.message)}</span>`, 'err', 8000);
+        return false;
+    }
+}
+
+function workDaysInMonth(year, month, days) {
+    let n = 0;
+    for (let d = new Date(year, month, 1); d.getMonth() === month; d.setDate(d.getDate() + 1)) {
+        if (days.includes((d.getDay() + 6) % 7)) n++;
+    }
+    return n;
+}
+
+function updateMonthlyHelp() {
+    const now = new Date();
+    const days = [...document.querySelectorAll('#setDays input:checked')].map(i => +i.value);
+    const t = +document.getElementById('setDailyTarget').value || 0;
+    const n = workDaysInMonth(now.getFullYear(), now.getMonth(), days);
+    document.getElementById('setMonthlyHelp').textContent =
+        `Leave it empty to use the daily target × work days (${fmtH(t)} × ${n} = ${fmtH(t * n)} this month). ` +
+        'Add a month below when that month needs a different goal, e.g. for holidays.';
+}
+
+function addMonthRow(month = '', hours = '') {
+    const row = document.createElement('div');
+    row.className = 'month-row';
+    row.innerHTML = `
+        <input class="input" type="month" value="${esc(month)}" aria-label="Month">
+        <span class="input-unit"><input class="input" type="number" min="0.5" step="0.5" value="${esc(hours)}" aria-label="Goal in hours"><span>h</span></span>
+        <button class="icon-btn" title="Remove" aria-label="Remove this month"><svg class="ic"><use href="#i-x"/></svg></button>`;
+    row.querySelector('button').onclick = () => row.remove();
+    document.getElementById('setMonthRows').appendChild(row);
+    if (!month) row.querySelector('input').focus();
+}
+
+function openSettings() {
+    const s = SETTINGS;
+    document.getElementById('setWorkStart').value  = s.work_start;
+    document.getElementById('setWorkEnd').value    = s.work_end;
+    document.getElementById('setLunchStart').value = s.lunch_start;
+    document.getElementById('setLunchEnd').value   = s.lunch_end;
+    document.getElementById('setDays').innerHTML = DOW_SHORT.map((d, i) => `
+        <label class="day-pick"><input type="checkbox" value="${i}" ${s.work_days.includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('');
+    document.getElementById('setDailyTarget').value = s.daily_target_h;
+    document.getElementById('setMinGap').value      = s.min_gap_min;
+    document.getElementById('setIdleDays').value    = s.idle_days;
+    document.getElementById('setMonthlyGoal').value = s.monthly_goal_h ?? '';
+    document.getElementById('setMonthRows').innerHTML = '';
+    Object.entries(s.month_goals).forEach(([m, h]) => addMonthRow(m, h));
+    document.getElementById('setSections').innerHTML = Object.entries(SECTION_LABELS).map(([key, [label, help]]) => `
+        <label class="switch"><span>${label}<small>${help}</small></span>
+            <input type="checkbox" data-key="${key}" ${sectionOn(key) ? 'checked' : ''}></label>`).join('');
+    document.getElementById('settingsError').textContent = '';
+    updateMonthlyHelp();
+    document.getElementById('settingsModal').classList.add('open');
+}
+
+function closeSettings() {
+    document.getElementById('settingsModal').classList.remove('open');
+}
+
+async function saveSettings() {
+    const val = id => document.getElementById(id).value;
+    const goals = {};
+    for (const m of Object.keys(SETTINGS.month_goals)) goals[m] = null;   // removed rows
+    for (const row of document.querySelectorAll('#setMonthRows .month-row')) {
+        const [month, hours] = row.querySelectorAll('input');
+        if (month.value) goals[month.value] = hours.value === '' ? null : hours.value;
+    }
+    const changes = {
+        work_start: val('setWorkStart'), work_end: val('setWorkEnd'),
+        lunch_start: val('setLunchStart'), lunch_end: val('setLunchEnd'),
+        work_days: [...document.querySelectorAll('#setDays input:checked')].map(i => +i.value),
+        daily_target_h: val('setDailyTarget'),
+        min_gap_min: val('setMinGap'),
+        idle_days: val('setIdleDays'),
+        monthly_goal_h: val('setMonthlyGoal') === '' ? null : val('setMonthlyGoal'),
+        month_goals: goals,
+        sections: Object.fromEntries([...document.querySelectorAll('#setSections input')].map(i => [i.dataset.key, i.checked])),
+    };
+    const btn = document.getElementById('settingsSave');
+    btn.disabled = true;
+    const errorEl = document.getElementById('settingsError');
+    errorEl.textContent = '';
+    const ok = await putSettings(changes, errorEl);
+    btn.disabled = false;
+    if (!ok) return;
+    closeSettings();
+    refreshAll();
+    showToast(`${icon('check', 'c-green')}<span>Settings saved</span>`, 'ok');
+}
+
+document.getElementById('settingsModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeSettings();
+});
+document.getElementById('settingsModal').addEventListener('input', e => {
+    if (e.target.closest('#setDays') || e.target.id === 'setDailyTarget') updateMonthlyHelp();
+});
+
 function refreshAll() {
     loadLifetime();
     loadSparklines();
-    loadIdle();
+    if (sectionOn('idle')) loadIdle();
+    loadGoal();
+    loadUnconfirmed();
     applyFilter();
 }
 
@@ -1970,10 +2595,13 @@ setInterval(() => { if (!document.hidden) autoImportAndRefresh(); }, AUTO_IMPORT
 // Wait for the web font so the canvas gauge is drawn with it
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(async () => {
     applyChartTheme();
+    await loadSettings();
     await autoImport();
     loadLifetime();
     loadSparklines();
-    loadIdle();
+    if (sectionOn('idle')) loadIdle();
+    loadGoal();
+    loadUnconfirmed();
     setFilter('all');  // default to All Time; applyFilter (called by setFilter) loads orders too
 });
 </script>

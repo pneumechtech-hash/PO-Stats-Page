@@ -60,6 +60,42 @@ the Docker image and publishes it as
 - Only files named `po-tracker-*.json` are read. Syncthing's temporary
   files are ignored.
 
+## Settings
+
+The gear icon at the top right opens Settings:
+
+- **Work day:** start and end times, lunch, and which days are work days.
+  Inactive gaps are measured inside these hours.
+- **Targets:** the daily target (7.5 h by default) used by the Avg Hours /
+  Day gauge and the gaps summary, the shortest break that counts as a gap,
+  and after how many days an untouched order is flagged as idle.
+- **Monthly goal:** by default the month's goal is the daily target × the
+  month's work days. Set a usual monthly goal to replace that, and add
+  specific months (holidays, shutdowns) that need their own goal. The goal
+  card's **Edit goal** button sets the current month's goal directly.
+- **Dashboard sections:** turn the optional sections on or off: month
+  goal, Not in SAP Yet, idle orders, period comparison, typical time per
+  tag, heatmap, inactive gaps, patterns and the timesheet export.
+
+Settings are saved on the server, in the database, so every browser and the
+Homepage widget use the same ones.
+
+## What's on the dashboard
+
+- **Month goal:** hours this month against the goal, where a steady pace
+  would be by today, and the hours per day still needed.
+- **Not in SAP Yet:** orders with time that has no CNF yet, oldest first.
+- **Compare with previous period:** totals for the selected period, with the
+  change since the same days of the previous week or month (or the previous
+  work day for Today).
+- **Typical time per tag:** median and average total time of finished
+  orders with each tag, which helps when estimating a job.
+- **Orders table:** search by PO, notes or tag, filter by status (including
+  "Not in SAP yet"), click a tag to show only its orders, and download a
+  **Timesheet CSV** (time per day and order) for the selected period.
+- Today's inactive time only counts up to now; the rest of the day shows
+  as "Rest of today" on the timeline.
+
 ## Homepage widget
 
 [Homepage](https://gethomepage.dev) can show a tile with today's and this
@@ -96,11 +132,18 @@ All the fields `/api/homepage` returns, if you want to show others:
 |-----------------|----------------|-------------------------------------------------|
 | `today`         | `5h 12m`       | Time tracked today                              |
 | `week`          | `32h 10m`      | Time tracked this week (Monday to today)        |
-| `week_pct`      | `80`           | This week as a % of 40 h (`format: percent`)    |
-| `today_seconds`, `week_seconds` | `18720` | The same in seconds (`format: duration`) |
+| `week_pct`      | `80`           | This week as a % of the daily target × work days (`format: percent`) |
+| `month`         | `62h 10m`      | Time tracked this month                         |
+| `month_goal`    | `140h`         | This month's goal (see Settings)                |
+| `month_pct`     | `44`           | Month as a % of the goal (`format: percent`)    |
+| `month_left`    | `77h 50m`      | Hours still needed for the goal                 |
+| `month_pace`    | `3h 20m behind` | Ahead of or behind a steady pace               |
+| `month_per_day` | `7h 05m`       | Hours per remaining work day to reach the goal  |
+| `today_seconds`, `week_seconds`, `month_seconds` | `18720` | The same in seconds (`format: duration`) |
 | `orders_today`  | `3`            | Orders worked on today                          |
 | `active_orders` | `12`           | Unfinished orders                               |
-| `idle_orders`   | `2`            | Unfinished orders with no session in 7 days     |
+| `idle_orders`   | `2`            | Unfinished orders untouched for the idle period in Settings |
+| `not_in_sap`    | `4h 30m`       | Worked time without a CNF yet                   |
 | `last_sync_ago` | `5 min ago`    | When the newest export was written              |
 | `last_sync`     | ISO date/time  | The same as a date (`format: relativeDate`)     |
 
@@ -123,7 +166,8 @@ The export files in the Syncthing folder are the real data. The database
 can always be rebuilt from them. To start fresh, run
 `docker compose down -v` in the stack's folder (usually
 `/opt/stacks/po-stats`; this deletes the database volume), then click
-**Deploy** in Dockge. Everything is re-imported when the container starts.
+**Deploy** in Dockge. Everything is re-imported when the container starts,
+but Settings go back to the defaults, since they live in the database.
 
 ## Permissions
 

@@ -14,7 +14,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py db.py ingest.py ./
+COPY app.py db.py ingest.py settings.py ./
 COPY templates/index.html templates/
 
 # /data holds the SQLite database. It is world-writable so the container

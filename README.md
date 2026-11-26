@@ -97,6 +97,20 @@ Homepage widget use the same ones.
 - Today's inactive time only counts up to now; the rest of the day shows
   as "Rest of today" on the timeline.
 
+## Deleting an order
+
+To remove an order from the stats, such as a test PO, click it to open its
+details, then click **Delete order** and confirm. It disappears from every
+total, chart and list, and from the Homepage widget.
+
+- It stays deleted even while the app's exports still include it, because
+  imports skip deleted orders. You don't have to delete it in the app first.
+- Right after deleting, the message at the bottom right has an **Undo**
+  button. Later, open Settings: **Deleted orders** lists every deleted order,
+  with a **Restore** button.
+- This only changes the stats database. The order stays in the phone app
+  and in the export files.
+
 ## Homepage widget
 
 [Homepage](https://gethomepage.dev) can show a tile with today's and this
@@ -168,7 +182,9 @@ can always be rebuilt from them. To start fresh, run
 `docker compose down -v` in the stack's folder (usually
 `/opt/stacks/po-stats`; this deletes the database volume), then click
 **Deploy** in Dockge. Everything is re-imported when the container starts,
-but Settings go back to the defaults, since they live in the database.
+but Settings go back to the defaults, and orders you deleted on the
+dashboard come back if the exports still include them, since both live in
+the database.
 
 ## Permissions
 

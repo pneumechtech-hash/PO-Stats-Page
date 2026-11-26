@@ -11,7 +11,9 @@ WATCH_FOLDER = os.environ.get('PO_STATS_IMPORT_DIR') or os.path.dirname(os.path.
 PATTERN = 'po-tracker-*.json'
 IN_DOCKER = os.path.exists('/.dockerenv') or os.path.exists('/run/.containerenv')  # Docker or Podman
 
-_lock = threading.Lock()  # one import at a time (page load + button can overlap)
+# One import at a time (page load + button can overlap). Deleting or restoring
+# an order takes it too, so an import running at that moment can't undo it.
+import_lock = threading.Lock()
 # What the log last said, so a background check every minute doesn't repeat it
 _last_problem = object()
 _last_errors = set()
@@ -29,7 +31,7 @@ def ingest_folder():
     The result's 'problem' says in plain words why nothing could be imported
     (folder missing, empty or unreadable), so the page and the log can show it.
     """
-    with _lock:
+    with import_lock:
         result = _ingest()
         _log(result)
         return result
@@ -93,6 +95,7 @@ def _ingest():
     conn = get_db()
     known = {r['filename']: (r['mtime_ns'], r['size'])
              for r in conn.execute('SELECT filename, mtime_ns, size FROM imports')}
+    deleted = {r['id'] for r in conn.execute('SELECT id FROM deleted_orders')}
 
     changed = [i for i, fp in enumerate(files) if known.get(os.path.basename(fp)) != stats[fp]]
     start = changed[0] if changed else len(files)
@@ -106,8 +109,8 @@ def _ingest():
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-            _import_orders(conn, data.get('orders', []), filename, is_archive=False)
-            _import_orders(conn, data.get('archive', []), filename, is_archive=True)
+            _import_orders(conn, data.get('orders', []), filename, is_archive=False, skip=deleted)
+            _import_orders(conn, data.get('archive', []), filename, is_archive=True, skip=deleted)
             ok = 1
             (imported if i in changed else reapplied).append(filename)
         except OSError as e:
@@ -151,9 +154,11 @@ def _log(r):
     _last_errors = errors
 
 
-def _import_orders(conn, orders, source_file, is_archive):
+def _import_orders(conn, orders, source_file, is_archive, skip=frozenset()):
     for order in orders:
         order_id = order['id']
+        if order_id in skip:   # deleted on the dashboard
+            continue
 
         # Explicitly delete child rows before upsert — ON DELETE CASCADE is unreliable
         # with Python's sqlite3 implicit transaction handling.

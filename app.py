@@ -1,6 +1,7 @@
 import csv
 import datetime
 import io
+import json
 import os
 import statistics
 import threading
@@ -11,7 +12,7 @@ from flask import Flask, Response, jsonify, render_template, request
 
 import settings as cfg
 from db import get_db, init_db
-from ingest import ingest_folder
+from ingest import import_lock, ingest_folder
 
 app = Flask(__name__)
 
@@ -611,6 +612,78 @@ def order_sessions(order_id):
         },
         'sessions': result,
     })
+
+
+ORDER_COLUMNS = ('id', 'po', 'notes', 'created', 'finished', 'finished_at', 'source_file', 'is_archive')
+
+
+def _remove_order_rows(conn, order_id):
+    conn.execute('DELETE FROM sessions WHERE order_id = ?', (order_id,))
+    conn.execute('DELETE FROM order_tags WHERE order_id = ?', (order_id,))
+    conn.execute('DELETE FROM orders WHERE id = ?', (order_id,))
+
+
+@app.route('/api/orders/<int:order_id>', methods=['DELETE'])
+def delete_order(order_id):
+    """Removes an order from the stats. It's remembered in deleted_orders, so
+    imports skip it even while the app's exports still contain it, and a copy
+    is kept there so Settings can restore it."""
+    with import_lock:
+        conn = get_db()
+        order = conn.execute('SELECT * FROM orders WHERE id = ?', (order_id,)).fetchone()
+        if not order:
+            conn.close()
+            return jsonify({'error': 'That order is no longer in the stats.'}), 404
+        tags = [r['tag'] for r in conn.execute('SELECT tag FROM order_tags WHERE order_id = ?', (order_id,))]
+        sessions = [dict(r) for r in conn.execute(
+            'SELECT start, duration, cnf FROM sessions WHERE order_id = ? ORDER BY start', (order_id,))]
+        total_ms = sum(s['duration'] or 0 for s in sessions)
+        copy = {'order': {k: order[k] for k in ORDER_COLUMNS}, 'tags': tags, 'sessions': sessions}
+        conn.execute('''
+            INSERT OR REPLACE INTO deleted_orders (id, po, notes, total_ms, deleted_at, data)
+            VALUES (?, ?, ?, ?, datetime('now', 'localtime'), ?)
+        ''', (order_id, order['po'], order['notes'] or '', total_ms, json.dumps(copy)))
+        _remove_order_rows(conn, order_id)
+        conn.commit()
+        conn.close()
+    return jsonify({'deleted': {'id': order_id, 'po': order['po'], 'notes': order['notes'] or '',
+                                'total_ms': total_ms, 'sessions': len(sessions)}})
+
+
+@app.route('/api/deleted_orders')
+def deleted_orders():
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT id, po, notes, total_ms, deleted_at FROM deleted_orders
+        ORDER BY deleted_at DESC, id DESC
+    ''').fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/deleted_orders/<int:order_id>/restore', methods=['POST'])
+def restore_order(order_id):
+    """Puts a deleted order back as it was when deleted. Imports stop skipping
+    it, so the next change to it in the app updates it as usual."""
+    with import_lock:
+        conn = get_db()
+        row = conn.execute('SELECT data FROM deleted_orders WHERE id = ?', (order_id,)).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': "That order isn't in the deleted list."}), 404
+        copy = json.loads(row['data'])
+        o = copy['order']
+        _remove_order_rows(conn, order_id)
+        conn.execute(f'INSERT INTO orders ({", ".join(ORDER_COLUMNS)}) VALUES ({", ".join("?" * len(ORDER_COLUMNS))})',
+                     [o.get(k) for k in ORDER_COLUMNS])
+        conn.executemany('INSERT OR IGNORE INTO order_tags (order_id, tag) VALUES (?, ?)',
+                         [(order_id, t) for t in copy['tags']])
+        conn.executemany('INSERT INTO sessions (order_id, start, duration, cnf) VALUES (?, ?, ?, ?)',
+                         [(order_id, s['start'], s['duration'], s['cnf']) for s in copy['sessions']])
+        conn.execute('DELETE FROM deleted_orders WHERE id = ?', (order_id,))
+        conn.commit()
+        conn.close()
+    return jsonify({'restored': {'id': order_id, 'po': o['po']}})
 
 
 def _idle_count(conn, threshold_days, now_s):

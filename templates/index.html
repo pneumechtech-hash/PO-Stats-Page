@@ -414,6 +414,17 @@
         .cnf-yes { font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--green-soft); color: var(--green-text); }
         .cnf-no { font-size: 0.72rem; color: var(--text-muted); }
         .modal-empty { color: var(--text-muted); font-size: 0.875rem; padding: 12px 0; }
+        .modal-foot {
+            display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
+            margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+        }
+        .modal-foot-text { flex: 1 1 260px; font-size: 0.82rem; color: var(--text-dim); line-height: 1.45; }
+        .modal-foot-text b { color: var(--text); }
+        .btn-ghost.btn-danger-ghost { color: var(--red-text); }
+        .btn-ghost.btn-danger-ghost:hover { background: var(--red-soft); border-color: var(--red-text); }
+        .btn-danger { background: #dc2626; color: #fff; height: 32px; padding: 0 12px; font-size: 0.8rem; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-danger:disabled { opacity: 0.65; cursor: progress; }
 
         /* ── Month goal ────────────────────────────────────────────── */
         [hidden] { display: none !important; }
@@ -509,6 +520,10 @@
         }
         .set-actions .btn-ghost { height: 38px; }
         .form-error { margin-right: auto; color: var(--red-text); font-size: 0.82rem; }
+        .deleted-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
+        .deleted-row:last-child { border-bottom: none; }
+        .deleted-info { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+        .deleted-info small { display: block; color: var(--text-muted); font-size: 0.76rem; margin-top: 2px; }
         .seg-future { background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--inset) 6px 12px); color: var(--text-muted); }
 
         /* ── Toast ─────────────────────────────────────────────────── */
@@ -523,6 +538,7 @@
         .toast span { min-width: 0; overflow-wrap: anywhere; }
         .toast.ok  { border-left-color: #10b981; }
         .toast.err { border-left-color: #ef4444; }
+        .toast .btn { margin-left: auto; height: 28px; flex-shrink: 0; }
 
         /* ── Responsive ────────────────────────────────────────────── */
         @media (max-width: 1280px) {
@@ -594,6 +610,7 @@
         <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
         <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
         <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></symbol>
         <symbol id="i-compare" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
     </defs>
 </svg>
@@ -888,6 +905,7 @@
         <div class="modal-po-title" id="modalTitle"></div>
         <div class="modal-meta" id="modalMeta"></div>
         <div id="modalBody"></div>
+        <div class="modal-foot" id="modalFoot"></div>
     </div>
 </div>
 
@@ -935,6 +953,12 @@
         <div class="set-section">
             <div class="set-title">Dashboard sections</div>
             <div id="setSections"></div>
+        </div>
+
+        <div class="set-section">
+            <div class="set-title">Deleted orders</div>
+            <div class="set-help" style="margin:0 0 6px">Orders you deleted from their details window. Imports skip them, even while the app's exports still include them. Restore puts one back right away; you don't need to click Save.</div>
+            <div id="setDeleted"></div>
         </div>
 
         <div class="set-actions">
@@ -2132,6 +2156,8 @@ async function openDrilldown(orderId) {
     const tags   = order.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('');
     const status = `<span class="badge ${order.finished ? 'badge-finished' : 'badge-active'}">${order.finished ? 'Finished' : 'Active'}</span>`;
     const total  = fmtMs(sessions.reduce((s, x) => s + x.duration_ms, 0));
+    drillOrder = { id: order.id, po: order.po, sessions: sessions.length, total };
+    renderDrillFoot(false);
     document.getElementById('modalMeta').innerHTML =
         `${tags}${status}<span>${sessions.length} session${sessions.length !== 1 ? 's' : ''}</span><span>·</span><span>${total} total</span>`;
 
@@ -2171,6 +2197,74 @@ document.getElementById('drillModal').addEventListener('click', e => {
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeModal(); closeSettings(); toggleNav(false); }
 });
+
+// ── Deleting and restoring orders ─────────────────────────────────
+let drillOrder = null;   // the order shown in the drill-down
+
+// The drill-down's footer: a Delete button, or the question that confirms it
+function renderDrillFoot(confirming) {
+    const foot = document.getElementById('modalFoot');
+    if (!confirming) {
+        foot.innerHTML = `<button class="btn btn-ghost btn-danger-ghost" onclick="renderDrillFoot(true)">${icon('trash')}Delete order</button>`;
+        return;
+    }
+    const o = drillOrder;
+    const what = o.sessions ? ` and its ${o.sessions} session${o.sessions !== 1 ? 's' : ''} (${o.total})` : '';
+    foot.innerHTML = `
+        <span class="modal-foot-text">Delete PO <b>${esc(o.po)}</b>${what} from the stats? Imports will skip it,
+            even if it's still in the app. You can restore it in Settings.</span>
+        <button class="btn btn-ghost" onclick="renderDrillFoot(false)">Cancel</button>
+        <button class="btn btn-danger" id="confirmDeleteBtn" onclick="deleteOrder()">${icon('trash')}Delete</button>`;
+    document.getElementById('confirmDeleteBtn').focus();
+}
+
+async function deleteOrder() {
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
+    try {
+        const r = await fetch(`/api/orders/${drillOrder.id}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `the server answered ${r.status}`);
+        closeModal();
+        refreshAll();
+        showToast(`${icon('check', 'c-green')}<span>Deleted PO ${esc(d.deleted.po)}</span>
+            <button class="btn btn-ghost" onclick="this.disabled = true; restoreOrder(${d.deleted.id})">Undo</button>`, 'ok', 10000);
+    } catch (e) {
+        btn.disabled = false;
+        showToast(`${icon('alert', 'c-red')}<span>Couldn't delete the order: ${esc(e.message)}</span>`, 'err', 8000);
+    }
+}
+
+async function restoreOrder(id) {
+    try {
+        const r = await fetch(`/api/deleted_orders/${id}/restore`, { method: 'POST' });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `the server answered ${r.status}`);
+        refreshAll();
+        if (document.getElementById('settingsModal').classList.contains('open')) loadDeletedOrders();
+        showToast(`${icon('check', 'c-green')}<span>Restored PO ${esc(d.restored.po)}</span>`, 'ok');
+    } catch (e) {
+        showToast(`${icon('alert', 'c-red')}<span>Couldn't restore the order: ${esc(e.message)}</span>`, 'err', 8000);
+    }
+}
+
+// The Deleted orders list in Settings
+async function loadDeletedOrders() {
+    const el = document.getElementById('setDeleted');
+    try {
+        const list = await (await fetch('/api/deleted_orders')).json();
+        el.innerHTML = list.length ? list.map(o => `
+            <div class="deleted-row">
+                <span class="po-num">${esc(o.po)}</span>
+                <span class="deleted-info">${o.notes ? esc(o.notes) : '<span class="cell-dim">No notes</span>'}
+                    <small>${fmtMs(o.total_ms)} · deleted ${fmtShortDate(o.deleted_at.slice(0, 10))}, ${o.deleted_at.slice(11, 16)}</small></span>
+                <button class="btn btn-ghost" onclick="this.disabled = true; restoreOrder(${o.id})">Restore</button>
+            </div>`).join('')
+            : '<div class="cell-dim">No deleted orders.</div>';
+    } catch (e) {
+        el.innerHTML = `<div class="form-error">Couldn't load the deleted orders: ${esc(e.message)}</div>`;
+    }
+}
 
 // ── Gap collapse toggle ───────────────────────────────────────────
 function toggleGapBody() {
@@ -2477,6 +2571,7 @@ function openSettings() {
             <input type="checkbox" data-key="${key}" ${sectionOn(key) ? 'checked' : ''}></label>`).join('');
     document.getElementById('settingsError').textContent = '';
     updateMonthlyHelp();
+    loadDeletedOrders();
     document.getElementById('settingsModal').classList.add('open');
 }
 

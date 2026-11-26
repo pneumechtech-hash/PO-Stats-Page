@@ -55,6 +55,18 @@ def init_db():
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
         );
+
+        -- Orders deleted on the dashboard. Imports skip these ids, so an order
+        -- stays deleted while the app's exports still contain it. data holds
+        -- the order, its tags and sessions as JSON, for Restore.
+        CREATE TABLE IF NOT EXISTS deleted_orders (
+            id INTEGER PRIMARY KEY,
+            po TEXT NOT NULL,
+            notes TEXT DEFAULT '',
+            total_ms INTEGER DEFAULT 0,
+            deleted_at TEXT DEFAULT (datetime('now', 'localtime')),
+            data TEXT NOT NULL
+        );
     ''')
     # Change detection for re-importing updated files (older databases lack these)
     cols = {r['name'] for r in conn.execute('PRAGMA table_info(imports)')}

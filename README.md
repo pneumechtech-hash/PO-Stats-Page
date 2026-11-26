@@ -83,7 +83,9 @@ Homepage widget use the same ones.
 ## What's on the dashboard
 
 - **Month goal:** hours this month against the goal, where a steady pace
-  would be by today, and the hours per day still needed.
+  would be by now, and the hours per day still needed. Today adds to the
+  expected hours as your work hours pass (lunch excluded), and it stops
+  counting as a work day left once your work day ends.
 - **Not in SAP Yet:** unfinished orders with time that has no CNF yet,
   oldest first. Finished orders count as done.
 - **Compare with previous period:** totals for the selected period, with the

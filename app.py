@@ -739,17 +739,37 @@ def idle():
 
 # ── Goals, comparisons and to-dos ─────────────────────────────────────────
 
-def _month_progress(conn, s, month, today):
+def _window_passed(w, minute):
+    """How much of a work day's window, lunch excluded, has passed at this
+    minute of the day: 0 before it starts, 1 once it has ended."""
+    def worked(t):
+        t = max(w.start, min(w.end, t))
+        lunch = max(0, min(t, w.lunch_end) - max(w.start, w.lunch_start))
+        return t - w.start - lunch
+    total = worked(w.end)
+    return worked(minute) / total if total > 0 else float(minute >= w.end)
+
+
+def _month_progress(conn, s, month, now):
     """Progress toward a month's hour goal, and the pace needed to reach it.
     The goal is the month's own goal, else the default monthly goal, else the
-    daily target times the work days in the month."""
+    daily target times the work days in the month.
+
+    Today counts toward the expected hours as its work window passes, so the
+    pace line moves through the day, and it stops counting as a day left once
+    the work day has ended. now is a datetime (a plain date means midnight)."""
+    if not isinstance(now, datetime.datetime):
+        now = datetime.datetime.combine(now, datetime.time())
+    today = now.date()
     y, m = map(int, month.split('-'))
     first = datetime.date(y, m, 1)
     last = datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.timedelta(days=1)
     work = [first + datetime.timedelta(n) for n in range((last - first).days + 1)
             if (first + datetime.timedelta(n)).weekday() in s['work_days']]
-    done = [d for d in work if d < today]        # work days already over
-    left = len(work) - len(done)                 # including today
+    today_part = (_window_passed(_window(s), now.hour * 60 + now.minute + now.second / 60)
+                  if today in work else 0.0)
+    days_passed = sum(1 for d in work if d < today) + today_part   # e.g. 18.5 at today's midpoint
+    left = len(work) - int(days_passed)    # work days with work still to do, today until it ends
 
     if month in s['month_goals']:
         goal, source = s['month_goals'][month], 'month'
@@ -763,7 +783,7 @@ def _month_progress(conn, s, month, today):
         WHERE date(start / 1000, 'unixepoch', 'localtime') BETWEEN ? AND ?
     ''', (first.isoformat(), last.isoformat())).fetchone()[0]
     tracked_h = tracked_ms / 3_600_000
-    expected_h = goal * len(done) / len(work) if work else 0   # where steady pace would be by now
+    expected_h = goal * days_passed / len(work) if work else 0   # where steady pace would be by now
     remaining_h = max(0.0, goal - tracked_h)
 
     return {
@@ -773,7 +793,7 @@ def _month_progress(conn, s, month, today):
         'tracked_ms': tracked_ms,
         'pct': round(tracked_h / goal * 100) if goal else 0,
         'work_days': len(work),
-        'work_days_done': len(done),
+        'work_days_done': len(work) - left,
         'work_days_left': left,
         'expected_h': round(expected_h, 2),
         'ahead_h': round(tracked_h - expected_h, 2),
@@ -791,7 +811,7 @@ def goal():
     except ValueError:
         return jsonify({'error': 'month must look like 2026-11'}), 400
     conn = get_db()
-    result = _month_progress(conn, cfg.load(conn), month, today)
+    result = _month_progress(conn, cfg.load(conn), month, datetime.datetime.now())
     conn.close()
     return jsonify(result)
 
@@ -985,7 +1005,7 @@ def homepage_summary():
         SELECT COALESCE(SUM(s.duration), 0) FROM sessions s JOIN orders o ON o.id = s.order_id
         WHERE s.cnf = 0 AND s.duration > 0 AND o.finished = 0
     ''').fetchone()[0]
-    month = _month_progress(conn, s, today.strftime('%Y-%m'), today)
+    month = _month_progress(conn, s, today.strftime('%Y-%m'), datetime.datetime.now())
     # When the newest export was written (Syncthing keeps the phone's file times)
     last_ns = conn.execute('SELECT MAX(mtime_ns) FROM imports WHERE ok = 1').fetchone()[0]
     conn.close()

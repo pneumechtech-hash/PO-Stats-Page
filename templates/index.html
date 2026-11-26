@@ -2294,7 +2294,7 @@ function renderGoal() {
     const reached  = trackedH >= g.goal_h;
     const color = reached || g.ahead_h >= 0 ? GREEN : trackedH >= g.expected_h * 0.9 ? AMBER : RED;
     const status = reached ? '<span class="c-green">Goal reached</span>'
-        : g.work_days_done === 0 ? '<span class="muted">Month just started</span>'
+        : g.expected_h <= 0 ? '<span class="muted">Month just started</span>'
         : g.ahead_h >= 0 ? `<span class="c-green">${fmtMs(g.ahead_h * 3600000)} ahead of pace</span>`
         : `<span class="${color === AMBER ? 'c-amber' : 'c-red'}">${fmtMs(-g.ahead_h * 3600000)} behind pace</span>`;
     const source = g.goal_source === 'month' ? `your goal for ${monthLong(g.month)}`
@@ -2309,14 +2309,14 @@ function renderGoal() {
             <span class="goal-of">of ${fmtH(g.goal_h)} · ${g.pct}%</span>
             <span class="goal-status">${status}</span>
         </div>
-        <div class="progress" title="The line marks where a steady pace would be by today">
+        <div class="progress" title="The line marks where a steady pace would be by now">
             <div class="progress-fill" style="width:${Math.min(100, g.pct)}%;background:${color}"></div>
-            ${g.work_days_done && !reached ? `<div class="progress-mark" style="left:${markPct}%"></div>` : ''}
+            ${g.expected_h > 0 && !reached ? `<div class="progress-mark" style="left:${markPct}%"></div>` : ''}
         </div>
         <div class="goal-facts">
-            <span>Expected by today <strong>${fmtMs(g.expected_h * 3600000)}</strong></span>
+            <span title="Where a steady pace would be by now. Today adds up through your work hours, lunch excluded.">Expected by now <strong>${fmtMs(g.expected_h * 3600000)}</strong></span>
             <span>Remaining <strong>${fmtMs(g.remaining_h * 3600000)}</strong></span>
-            <span>Work days left <strong>${g.work_days_left}</strong></span>
+            <span title="Today counts until your work day ends (${esc(SETTINGS ? SETTINGS.work_end : '')})">Work days left <strong>${g.work_days_left}</strong></span>
             ${g.per_day_h !== null && !reached ? `<span>Needed per day <strong>${fmtMs(g.per_day_h * 3600000)}</strong></span>` : ''}
             <span class="muted">Goal: ${source}</span>
         </div>`;

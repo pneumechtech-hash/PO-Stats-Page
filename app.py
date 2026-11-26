@@ -1,5 +1,7 @@
 import datetime
+import os
 import threading
+import time
 
 from flask import Flask, jsonify, render_template, request
 
@@ -11,11 +13,26 @@ app = Flask(__name__)
 # Runs on import so a production server (gunicorn in Docker) gets the schema too
 init_db()
 
-# Under gunicorn, import once at startup: the data is there before anyone opens
-# the page, and the container log says straight away whether the import folder
-# can be read. (Skipped for `python app.py`, whose reloader loads this file twice.)
-if __name__ != '__main__':
-    threading.Thread(target=ingest_folder, name='startup-import', daemon=True).start()
+# Seconds between background checks of the import folder (0 turns them off)
+IMPORT_EVERY = int(os.environ.get('PO_STATS_IMPORT_EVERY', '60'))
+
+
+def _import_loop():
+    """Imports at startup, then keeps checking the import folder, so the data
+    (and the Homepage widget) stay current while nobody has the page open.
+    The first round also tells the container log whether the folder is readable."""
+    while True:
+        try:
+            ingest_folder()
+        except Exception as e:  # keep going; the next round tries again
+            print(f'Import failed: {e}', flush=True)
+        time.sleep(IMPORT_EVERY)
+
+
+# Under gunicorn only: `python app.py` runs Flask's reloader, which loads this
+# file twice; there the page's own import checks are enough.
+if __name__ != '__main__' and IMPORT_EVERY > 0:
+    threading.Thread(target=_import_loop, name='auto-import', daemon=True).start()
 
 
 @app.route('/')
@@ -33,6 +50,72 @@ def healthz():
 def do_import():
     result = ingest_folder()
     return jsonify(result)
+
+
+def _fmt_hm(seconds):
+    minutes = int(seconds // 60)
+    return f'{minutes // 60}h {minutes % 60:02d}m' if minutes >= 60 else f'{minutes}m'
+
+
+def _fmt_ago(seconds):
+    if seconds < 90:
+        return 'just now'
+    if seconds < 3600:
+        return f'{round(seconds / 60)} min ago'
+    if seconds < 48 * 3600:
+        return f'{round(seconds / 3600)} h ago'
+    return f'{round(seconds / 86400)} days ago'
+
+
+@app.route('/api/homepage')
+def homepage_summary():
+    """Flat summary for Homepage's Custom API widget (gethomepage.dev).
+    Text fields are ready to show as they are; *_seconds fields suit
+    `format: duration`. The week runs Monday to today."""
+    today = datetime.date.today()
+    monday = today - datetime.timedelta(days=today.weekday())
+    now = time.time()
+    conn = get_db()
+
+    def tracked_seconds(frm, to):
+        return conn.execute('''
+            SELECT COALESCE(SUM(duration), 0) FROM sessions
+            WHERE date(start / 1000, 'unixepoch', 'localtime') BETWEEN ? AND ?
+        ''', (frm.isoformat(), to.isoformat())).fetchone()[0] / 1000
+
+    today_s = tracked_seconds(today, today)
+    week_s = tracked_seconds(monday, today)
+    orders_today = conn.execute('''
+        SELECT COUNT(DISTINCT order_id) FROM sessions
+        WHERE date(start / 1000, 'unixepoch', 'localtime') = ?
+    ''', (today.isoformat(),)).fetchone()[0]
+    active = conn.execute('SELECT COUNT(*) FROM orders WHERE finished = 0').fetchone()[0]
+    # Same rule as the dashboard's idle list: unfinished, no session in 7 days
+    idle = conn.execute('''
+        SELECT COUNT(*) FROM (
+            SELECT MAX(s.start) AS last_ms FROM orders o
+            LEFT JOIN sessions s ON s.order_id = o.id
+            WHERE o.finished = 0 GROUP BY o.id
+        ) WHERE last_ms IS NULL OR last_ms < ?
+    ''', ((now - 7 * 86400) * 1000,)).fetchone()[0]
+    # When the newest export was written (Syncthing keeps the phone's file times)
+    last_ns = conn.execute('SELECT MAX(mtime_ns) FROM imports WHERE ok = 1').fetchone()[0]
+    conn.close()
+
+    last_sync = (datetime.datetime.fromtimestamp(last_ns / 1e9, datetime.timezone.utc)
+                 .isoformat(timespec='seconds') if last_ns else None)
+    return jsonify({
+        'today':          _fmt_hm(today_s),
+        'today_seconds':  round(today_s),
+        'week':           _fmt_hm(week_s),
+        'week_seconds':   round(week_s),
+        'week_pct':       round(week_s / (40 * 3600) * 100),  # of a 40 h week
+        'orders_today':   orders_today,
+        'active_orders':  active,
+        'idle_orders':    idle,
+        'last_sync':      last_sync,
+        'last_sync_ago':  _fmt_ago(max(0, now - last_ns / 1e9)) if last_ns else 'never',
+    })
 
 
 @app.route('/api/summary')

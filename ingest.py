@@ -12,7 +12,9 @@ PATTERN = 'po-tracker-*.json'
 IN_DOCKER = os.path.exists('/.dockerenv') or os.path.exists('/run/.containerenv')  # Docker or Podman
 
 _lock = threading.Lock()  # one import at a time (page load + button can overlap)
-_last_problem = object()  # last folder problem written to the log, so it isn't repeated
+# What the log last said, so a background check every minute doesn't repeat it
+_last_problem = object()
+_last_errors = set()
 
 
 def ingest_folder():
@@ -134,16 +136,19 @@ def _ingest():
 
 
 def _log(r):
-    """Writes what an import did to stdout (the container log)."""
-    global _last_problem
+    """Writes what an import did to stdout (the container log), skipping
+    problems and errors that are unchanged since the last time."""
+    global _last_problem, _last_errors
     if r['problem'] != _last_problem:
         _last_problem = r['problem']
         print(f"Import: {r['problem']}" if r['problem']
               else f"Import folder {r['folder']}: {r['found']} export file(s) found", flush=True)
     if r['imported']:
         print(f"Imported {len(r['imported'])} file(s): {', '.join(r['imported'])}", flush=True)
-    for e in r['errors']:
-        print(f"Could not import {e['file']}: {e['error']}", flush=True)
+    errors = {(e['file'], e['error']) for e in r['errors']}
+    for file, error in sorted(errors - _last_errors):
+        print(f'Could not import {file}: {error}', flush=True)
+    _last_errors = errors
 
 
 def _import_orders(conn, orders, source_file, is_archive):

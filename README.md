@@ -49,9 +49,8 @@ the Docker image and publishes it as
 
 ## How imports work
 
-- The container imports once when it starts. The page then checks the import
-  folder when it opens, when you return to the tab, and every 5 minutes while
-  it's open. **Import JSON** checks right away.
+- The container checks the import folder when it starts and then every
+  minute, whether or not the page is open. **Import JSON** checks right away.
 - The line under the sidebar text shows how many export files were found, or
   in red, why none could be read. The same message is in the container log.
 - Each export is a full snapshot of the app. A file is imported again
@@ -60,6 +59,53 @@ the Docker image and publishes it as
   snapshot wins.
 - Only files named `po-tracker-*.json` are read. Syncthing's temporary
   files are ignored.
+
+## Homepage widget
+
+[Homepage](https://gethomepage.dev) can show a tile with today's and this
+week's tracked time, using its Custom API widget and this app's
+`/api/homepage` endpoint. Add this to Homepage's `services.yaml`, replacing
+`<server-ip>` with the server's address (Homepage fetches the URL itself,
+so it has to be reachable from the Homepage container):
+
+```yaml
+- Work:
+    - PO Tracker:
+        icon: mdi-timer-outline
+        href: http://<server-ip>:5000
+        description: PO time tracking
+        widget:
+          type: customapi
+          url: http://<server-ip>:5000/api/homepage
+          refreshInterval: 60000
+          mappings:
+            - field: today
+              label: Today
+            - field: week
+              label: This week
+            - field: active_orders
+              label: Active orders
+              format: number
+            - field: last_sync_ago
+              label: Last export
+```
+
+All the fields `/api/homepage` returns, if you want to show others:
+
+| Field           | Example        | Meaning                                         |
+|-----------------|----------------|-------------------------------------------------|
+| `today`         | `5h 12m`       | Time tracked today                              |
+| `week`          | `32h 10m`      | Time tracked this week (Monday to today)        |
+| `week_pct`      | `80`           | This week as a % of 40 h (`format: percent`)    |
+| `today_seconds`, `week_seconds` | `18720` | The same in seconds (`format: duration`) |
+| `orders_today`  | `3`            | Orders worked on today                          |
+| `active_orders` | `12`           | Unfinished orders                               |
+| `idle_orders`   | `2`            | Unfinished orders with no session in 7 days     |
+| `last_sync_ago` | `5 min ago`    | When the newest export was written              |
+| `last_sync`     | ISO date/time  | The same as a date (`format: relativeDate`)     |
+
+`last_sync_ago` is a handy health check: if it says days ago on a work
+day, the phone's auto-export or Syncthing has stopped.
 
 ## Updating
 
@@ -130,3 +176,4 @@ Optional environment variables, for either setup:
 |-----------------------|-----------------|--------------------------------|
 | `PO_STATS_IMPORT_DIR` | this folder     | Where to look for exports      |
 | `PO_STATS_DB`         | `po_stats.db` here | Path of the SQLite database |
+| `PO_STATS_IMPORT_EVERY` | `60`          | Seconds between background import checks (Docker only; `0` turns them off) |

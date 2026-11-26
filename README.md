@@ -84,7 +84,8 @@ Homepage widget use the same ones.
 
 - **Month goal:** hours this month against the goal, where a steady pace
   would be by today, and the hours per day still needed.
-- **Not in SAP Yet:** orders with time that has no CNF yet, oldest first.
+- **Not in SAP Yet:** unfinished orders with time that has no CNF yet,
+  oldest first. Finished orders count as done.
 - **Compare with previous period:** totals for the selected period, with the
   change since the same days of the previous week or month (or the previous
   work day for Today).
@@ -143,7 +144,7 @@ All the fields `/api/homepage` returns, if you want to show others:
 | `orders_today`  | `3`            | Orders worked on today                          |
 | `active_orders` | `12`           | Unfinished orders                               |
 | `idle_orders`   | `2`            | Unfinished orders untouched for the idle period in Settings |
-| `not_in_sap`    | `4h 30m`       | Worked time without a CNF yet                   |
+| `not_in_sap`    | `4h 30m`       | Worked time without a CNF yet, on unfinished orders |
 | `last_sync_ago` | `5 min ago`    | When the newest export was written              |
 | `last_sync`     | ISO date/time  | The same as a date (`format: relativeDate`)     |
 

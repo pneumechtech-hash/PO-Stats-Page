@@ -1542,6 +1542,9 @@ function ordersTableTitle(from, to) {
 
 let ordersAll = [], ordersRange = {}, orderTagFilter = '';
 
+// Time still to enter in SAP. Finished orders count as done, whatever their sessions say.
+const sapPending = o => !o.finished && o.pending_count > 0;
+
 async function loadOrders(from, to) {
     let url = '/api/orders';
     if (from && to) url += `?from=${from}&to=${to}`;
@@ -1561,7 +1564,7 @@ function renderOrders() {
         (!q || o.po.toLowerCase().includes(q) || (o.notes || '').toLowerCase().includes(q)
             || o.tags.some(t => t.toLowerCase().includes(q)))
         && (st === 'all' || (st === 'active' && !o.finished) || (st === 'finished' && o.finished)
-            || (st === 'pending' && o.pending_count > 0))
+            || (st === 'pending' && sapPending(o)))
         && (!orderTagFilter || o.tags.includes(orderTagFilter)));
 
     const n = ordersAll.length;
@@ -1584,7 +1587,7 @@ function renderOrders() {
             <td><span class="po-num">${esc(o.po)}</span></td>
             <td>${o.tags.map(t => `<span class="tag tag-btn" data-tag="${esc(t)}" title="Show only ${esc(t)}">${esc(t)}</span>`).join('')}</td>
             <td class="num">${o.session_count}</td>
-            <td class="num cell-dim${o.pending_count ? ' c-amber' : ''}" title="${o.pending_count ? `${o.pending_count} not in SAP yet` : 'All in SAP'}">${o.cnf_count}/${o.session_count}</td>
+            <td class="num cell-dim${sapPending(o) ? ' c-amber' : ''}" title="${sapPending(o) ? `${o.pending_count} not in SAP yet` : 'Nothing left to enter in SAP'}">${o.cnf_count}/${o.session_count}</td>
             <td style="font-weight:600">${fmtMs(o.total_ms)}</td>
             <td><span class="badge ${o.finished ? 'badge-finished' : 'badge-active'}">${o.finished ? 'Finished' : 'Active'}</span></td>
             <td class="cell-dim">${fmtDate(o.created)}</td>
@@ -2272,7 +2275,6 @@ async function loadUnconfirmed() {
         <div class="idle-row" onclick="openDrilldown(${o.id})" title="Click to view session history">
             <span class="idle-po po-blue">${esc(o.po)}</span>
             <span class="idle-badge idle-badge-warn">${o.pending_count} session${o.pending_count !== 1 ? 's' : ''}</span>
-            ${o.finished ? '<span class="badge badge-finished">Finished</span>' : ''}
             ${o.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}
             ${o.notes ? `<span class="idle-notes">${esc(o.notes)}</span>` : ''}
             <span class="idle-time">since ${fmtDate(o.oldest_ms)} · <strong>${fmtMs(o.pending_ms)}</strong></span>
@@ -2380,7 +2382,7 @@ function renderTagStats() {
 // ── Settings ──────────────────────────────────────────────────────
 const SECTION_LABELS = {
     goal:        ["This month's goal", 'Progress toward the monthly hour goal, with the pace you need'],
-    unconfirmed: ['Not in SAP yet', 'Orders with time that still needs a CNF'],
+    unconfirmed: ['Not in SAP yet', 'Unfinished orders with time that still needs a CNF'],
     idle:        ['Idle active orders', "Unfinished orders you haven't touched in a while"],
     compare:     ['Compare with previous period', 'Totals for the selected period, with the change since the one before'],
     tag_stats:   ['Typical time per tag', 'Median and average time per finished order, per tag'],

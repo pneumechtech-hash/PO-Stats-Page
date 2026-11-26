@@ -760,8 +760,9 @@ def period():
 
 @app.route('/api/unconfirmed')
 def unconfirmed():
-    """Orders with worked time not yet entered in SAP (sessions without CNF),
-    oldest first. Not tied to the period filter: it's a to-do list."""
+    """Unfinished orders with worked time not yet entered in SAP (sessions
+    without CNF), oldest first. Finished orders count as done, whatever their
+    sessions say. Not tied to the period filter: it's a to-do list."""
     conn = get_db()
     rows = conn.execute('''
         SELECT o.id, o.po, o.notes, o.finished,
@@ -774,6 +775,7 @@ def unconfirmed():
             FROM sessions WHERE cnf = 0 AND duration > 0
             GROUP BY order_id
         ) p ON p.order_id = o.id
+        WHERE o.finished = 0
         ORDER BY p.oldest_ms
     ''').fetchall()
     conn.close()
@@ -906,8 +908,10 @@ def homepage_summary():
     ''', (today.isoformat(),)).fetchone()[0]
     active = conn.execute('SELECT COUNT(*) FROM orders WHERE finished = 0').fetchone()[0]
     idle = _idle_count(conn, s['idle_days'], now)
-    pending_ms = conn.execute(
-        'SELECT COALESCE(SUM(duration), 0) FROM sessions WHERE cnf = 0 AND duration > 0').fetchone()[0]
+    pending_ms = conn.execute('''
+        SELECT COALESCE(SUM(s.duration), 0) FROM sessions s JOIN orders o ON o.id = s.order_id
+        WHERE s.cnf = 0 AND s.duration > 0 AND o.finished = 0
+    ''').fetchone()[0]
     month = _month_progress(conn, s, today.strftime('%Y-%m'), today)
     # When the newest export was written (Syncthing keeps the phone's file times)
     last_ns = conn.execute('SELECT MAX(mtime_ns) FROM imports WHERE ok = 1').fetchone()[0]

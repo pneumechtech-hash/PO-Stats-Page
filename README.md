@@ -73,9 +73,10 @@ The gear icon at the top right opens Settings:
   month's work days. Set a usual monthly goal to replace that, and add
   specific months (holidays, shutdowns) that need their own goal. The goal
   card's **Edit goal** button sets the current month's goal directly.
+  **Days off** chooses what days off do to the goal; see Days off below.
 - **Dashboard sections:** turn the optional sections on or off: month
-  goal, Not in SAP Yet, idle orders, period comparison, typical time per
-  tag, heatmap, inactive gaps, patterns and the timesheet export.
+  goal, Not in SAP Yet, idle orders, days off, period comparison, typical
+  time per tag, heatmap, inactive gaps, patterns and the timesheet export.
 
 Settings are saved on the server, in the database, so every browser and the
 Homepage widget use the same ones.
@@ -96,8 +97,37 @@ Homepage widget use the same ones.
 - **Orders table:** search by PO, notes or tag, filter by status (including
   "Not in SAP yet"), click a tag to show only its orders, and download a
   **Timesheet CSV** (time per day and order) for the selected period.
+- **Activity heatmap:** green shades for hours, where the darkest means the
+  daily target was reached; purple for days off; a purple outline for part
+  of a day off; and red with a × for missed work days. A missed day is a
+  past work day with nothing tracked and no day off. Days before your
+  first tracked day don't count, and today only counts once your work day
+  has ended.
 - Today's inactive time only counts up to now; the rest of the day shows
   as "Rest of today" on the timeline.
+
+## Days off
+
+Mark vacation, sick days, holidays and other time off in the phone app
+(Stats → Days Off), as whole days or part of a day. They travel in the
+app's exports, and the dashboard always uses the newest export's list, so
+a day removed in the app goes away here too. They change:
+
+- **Month goal:** days off are work time you won't work, so "Work days
+  left" and "Needed per day" leave them out, and "Expected by now" spreads
+  the goal over the days you're working. A part day counts as part of a
+  day. Settings → Monthly goal → **Days off** decides the goal itself:
+  - **Lower the goal for days off:** takes each day off's share of the
+    month's work time out of it (128 h with 1 of 21 work days off → 121.9 h).
+  - **Keep the goal as set:** the time is made up on the other days.
+  - **Show both** (the default): leads with the lowered goal and adds a
+    line for the goal as set.
+- **Inactive gaps:** time off isn't a gap. It shows in purple on the
+  day's timeline and is left out of "Unbooked" and "Short of" the target.
+- **Heatmap:** purple, as above.
+- **Days Off card:** this year's work days off per type, what's coming up
+  and what's been taken.
+- **Homepage widget:** the week's target leaves days off out.
 
 ## Deleting an order
 
@@ -149,9 +179,12 @@ All the fields `/api/homepage` returns, if you want to show others:
 |-----------------|----------------|-------------------------------------------------|
 | `today`         | `5h 12m`       | Time tracked today                              |
 | `week`          | `32h 10m`      | Time tracked this week (Monday to today)        |
-| `week_pct`      | `80`           | This week as a % of the daily target × work days (`format: percent`) |
+| `week_pct`      | `80`           | This week as a % of the daily target × work days, less days off (`format: percent`) |
+| `week_days_off` | `1 day`        | Work days off this week                         |
 | `month`         | `62h 10m`      | Time tracked this month                         |
-| `month_goal`    | `140h`         | This month's goal (see Settings)                |
+| `month_goal`    | `140h`         | This month's goal (see Settings; lowered for days off unless it's set to keep it) |
+| `month_days_off` | `1.5 days`    | Work days off this month                        |
+| `month_goal_full`, `month_left_full`, `month_pace_full`, `month_per_day_full` | `140h` | `month_goal`, `month_left`, `month_pace` and `month_per_day` for the goal before days off |
 | `month_pct`     | `44`           | Month as a % of the goal (`format: percent`)    |
 | `month_left`    | `77h 50m`      | Hours still needed for the goal                 |
 | `month_pace`    | `3h 20m behind` | Ahead of or behind a steady pace               |

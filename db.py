@@ -67,6 +67,16 @@ def init_db():
             deleted_at TEXT DEFAULT (datetime('now', 'localtime')),
             data TEXT NOT NULL
         );
+
+        -- Days off marked in the phone app, from the newest export. A row
+        -- without from_time/to_time is a whole day; with them, only that part.
+        CREATE TABLE IF NOT EXISTS days_off (
+            date TEXT PRIMARY KEY,
+            type TEXT NOT NULL DEFAULT 'other',
+            from_time TEXT,
+            to_time TEXT,
+            note TEXT DEFAULT ''
+        );
     ''')
     # Change detection for re-importing updated files (older databases lack these)
     cols = {r['name'] for r in conn.execute('PRAGMA table_info(imports)')}

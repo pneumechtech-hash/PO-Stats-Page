@@ -3,6 +3,7 @@ import datetime
 import io
 import json
 import os
+import re
 import statistics
 import threading
 import time
@@ -12,7 +13,7 @@ from flask import Flask, Response, jsonify, render_template, request
 
 import settings as cfg
 from db import get_db, init_db
-from ingest import import_lock, ingest_folder
+from ingest import DAY_OFF_TYPES, import_lock, ingest_folder
 
 app = Flask(__name__)
 
@@ -50,9 +51,76 @@ def _window(s):
                   cfg.to_min(s['lunch_start']), cfg.to_min(s['lunch_end']), s['min_gap_min'])
 
 
-def _work_days_between(s, frm, to):
-    return sum(1 for n in range((to - frm).days + 1)
-               if (frm + datetime.timedelta(n)).weekday() in s['work_days'])
+# ── Days off (marked in the phone app) ────────────────────────────────────
+# start/end are minutes of the day for part of a day, None for the whole day
+DayOff = namedtuple('DayOff', 'date type start end note')
+
+
+def _days_off(conn, frm=None, to=None):
+    """Days off as {'YYYY-MM-DD': DayOff}, all of them or only frm..to (ISO dates)."""
+    sql, args = 'SELECT date, type, from_time, to_time, note FROM days_off', ()
+    if frm and to:
+        sql, args = sql + ' WHERE date BETWEEN ? AND ?', (frm, to)
+    out = {}
+    for r in conn.execute(sql, args):
+        part = bool(r['from_time'] and r['to_time'])
+        out[r['date']] = DayOff(r['date'], r['type'], cfg.to_min(r['from_time']) if part else None,
+                                cfg.to_min(r['to_time']) if part else None, r['note'] or '')
+    return out
+
+
+def _off_span(w, off):
+    """The part of the work window a day off covers, as (start, end) minutes."""
+    if off is None:
+        return None
+    if off.start is None:
+        return (w.start, w.end)
+    start, end = max(w.start, off.start), min(w.end, off.end)
+    return (start, end) if end > start else None
+
+
+def _available_before(w, t, off=None):
+    """Work time in the window before minute t of the day: lunch and time off
+    excluded."""
+    t = max(w.start, min(w.end, t))
+    lunch = max(0, min(t, w.lunch_end) - max(w.start, w.lunch_start))
+    span = _off_span(w, off)
+    away = 0
+    if span:
+        away = max(0, min(t, span[1]) - max(w.start, span[0]))
+        # Time off over lunch isn't taken away twice
+        away -= max(0, min(t, span[1], w.lunch_end) - max(w.start, span[0], w.lunch_start))
+    return max(0, t - w.start - lunch - away)
+
+
+def _day_share(w, minute, off=None):
+    """How much of a normal work day's time has been worked by this minute,
+    if you worked steadily. At the end of the day it's the day's weight: 1
+    normally, 0.5 with half the day off, 0 for a day off."""
+    full = _available_before(w, w.end)
+    if full <= 0:
+        return 0.0 if off is not None and off.start is None else float(minute >= w.end)
+    return _available_before(w, minute, off) / full
+
+
+def _work_weights(s, w, frm, to, off):
+    """{date: day weight} for the work days frm..to (dates), days off lowering it."""
+    days = (frm + datetime.timedelta(n) for n in range((to - frm).days + 1))
+    return {d: _day_share(w, w.end, off.get(d.isoformat())) for d in days if d.weekday() in s['work_days']}
+
+
+def _day_off_json(w, off):
+    """A day off for the page: its type, note, and the hours off (None for the whole day)."""
+    if off is None:
+        return None
+    span = _off_span(w, off)
+    return {
+        'date': off.date, 'type': off.type, 'note': off.note, 'whole': off.start is None,
+        'from': _fmt_min(off.start) if off.start is not None else None,
+        'to': _fmt_min(off.end) if off.end is not None else None,
+        # the part of the work window that's off, for the gap timeline
+        'span': [_fmt_min(span[0]), _fmt_min(span[1])] if span else None,
+    }
 
 
 @app.route('/')
@@ -120,10 +188,17 @@ def summary():
             FROM sessions GROUP BY day ORDER BY day
         ''').fetchall()
 
+    # For the heatmap: days off in the period, and the first day ever tracked
+    # (work days before it aren't "missed", the app just wasn't in use yet)
+    w = _window(cfg.load(conn))
+    days_off = [_day_off_json(w, o) for _, o in sorted(_days_off(conn, from_str, to_str).items())]
+    first_day = conn.execute("SELECT date(MIN(start) / 1000, 'unixepoch', 'localtime') FROM sessions").fetchone()[0]
     conn.close()
     return jsonify({
         'tag_times': [{'tag': r['tag'], 'total_ms': r['total_ms']} for r in tag_times],
         'day_times': [{'day': r['day'], 'total_ms': r['total_ms']} for r in day_times],
+        'days_off': days_off,
+        'first_day': first_day,
     })
 
 
@@ -200,9 +275,11 @@ def _get_day_sessions(conn, date_str):
 
 
 def _compute_day_gaps(conn, date_str, w, now=None):
-    """Inactive gaps in one day's work window (w), lunch excluded. For today
-    (when now is given) gaps only count up to now: the rest of the day hasn't
-    happened yet."""
+    """Inactive gaps in one day's work window (w), lunch and time off excluded.
+    For today (when now is given) gaps only count up to now: the rest of the
+    day hasn't happened yet."""
+    off = _days_off(conn, date_str, date_str).get(date_str)
+    span = _off_span(w, off)
     rows = conn.execute('''
         SELECT start, duration
         FROM sessions
@@ -220,7 +297,7 @@ def _compute_day_gaps(conn, date_str, w, now=None):
             'date': date_str, 'has_sessions': False,
             'gaps': [], 'active_intervals': [],
             'day_start': _fmt_min(w.start), 'day_end': _fmt_min(w.end), 'gap_until': _fmt_min(gap_end),
-            'total_gap_min': 0,
+            'total_gap_min': 0, 'day_off': _day_off_json(w, off),
         }
 
     # Convert sessions to [start_min, end_min] in local time
@@ -260,7 +337,7 @@ def _compute_day_gaps(conn, date_str, w, now=None):
         if effective_s > cursor:
             # Capped at the window end: a session after hours doesn't make
             # the time between the end of the day and that session a gap
-            _split_gap(cursor, min(effective_s, gap_end), w, gaps_out)
+            _split_gap(cursor, min(effective_s, gap_end), w, gaps_out, span)
 
         cursor = max(cursor, min(iv_e, w.end))
 
@@ -269,7 +346,7 @@ def _compute_day_gaps(conn, date_str, w, now=None):
 
     # Gap from last tracked activity to end of work day (left early)
     if cursor < gap_end:
-        _split_gap(cursor, gap_end, w, gaps_out)
+        _split_gap(cursor, gap_end, w, gaps_out, span)
 
     return {
         'date': date_str,
@@ -283,18 +360,25 @@ def _compute_day_gaps(conn, date_str, w, now=None):
         'active_intervals': [{'start': _fmt_min(s), 'end': _fmt_min(e)} for s, e in merged],
         'total_gap_min': sum(g['duration_min'] for g in gaps_out),
         'total_worked_min': round(sum(r['duration'] for r in rows) / 60000),
+        'day_off': _day_off_json(w, off),
     }
 
 
-def _split_gap(gap_start, gap_end, w, out):
-    """Add gap segments to out, carving out the lunch window."""
-    if gap_end <= gap_start:
-        return
-    no_lunch = w.lunch_end <= w.lunch_start or gap_end <= w.lunch_start or gap_start >= w.lunch_end
-    pieces = ([(gap_start, gap_end)] if no_lunch
-              else [(gap_start, min(gap_end, w.lunch_start)), (max(gap_start, w.lunch_end), gap_end)])
+def _split_gap(gap_start, gap_end, w, out, off_span=None):
+    """Add gap segments to out, carving out lunch and any time off."""
+    pieces = [(gap_start, gap_end)] if gap_end > gap_start else []
+    for a, b in [(w.lunch_start, w.lunch_end)] + ([off_span] if off_span else []):
+        if b <= a:
+            continue
+        cut = []
+        for s, e in pieces:
+            if e <= a or s >= b:
+                cut.append((s, e))
+            else:
+                cut += [p for p in ((s, a), (b, e)) if p[1] > p[0]]
+        pieces = cut
     for s, e in pieces:
-        if e - s >= w.min_gap and e > s:
+        if e - s >= w.min_gap:
             out.append({'start': _fmt_min(s), 'end': _fmt_min(e), 'duration_min': round(e - s)})
 
 
@@ -334,14 +418,18 @@ def worked():
         FROM sessions
         WHERE date(start / 1000, 'unixepoch', 'localtime') BETWEEN ? AND ?
     ''', (from_str, to_str)).fetchone()[0]
+    weights = _work_weights(s, _window(s), datetime.date.fromisoformat(from_str),
+                            datetime.date.fromisoformat(to_str), _days_off(conn, from_str, to_str))
     conn.close()
 
-    working_days = _work_days_between(s, datetime.date.fromisoformat(from_str), datetime.date.fromisoformat(to_str))
+    # Work days in the range, less days off (a half day off counts 0.5)
+    working_days = round(sum(weights.values()), 2)
     return jsonify({
         'from': from_str, 'to': to_str,
         'total_ms': total_ms,
         'active_days': active_days,   # days that had at least one session
         'working_days': working_days, # work days (from Settings) in the range, used for target
+        'days_off': round(len(weights) - working_days, 2),
         'target_ms': round(working_days * s['daily_target_h'] * 3_600_000),
     })
 
@@ -739,17 +827,6 @@ def idle():
 
 # ── Goals, comparisons and to-dos ─────────────────────────────────────────
 
-def _window_passed(w, minute):
-    """How much of a work day's window, lunch excluded, has passed at this
-    minute of the day: 0 before it starts, 1 once it has ended."""
-    def worked(t):
-        t = max(w.start, min(w.end, t))
-        lunch = max(0, min(t, w.lunch_end) - max(w.start, w.lunch_start))
-        return t - w.start - lunch
-    total = worked(w.end)
-    return worked(minute) / total if total > 0 else float(minute >= w.end)
-
-
 def _month_progress(conn, s, month, now):
     """Progress toward a month's hour goal, and the pace needed to reach it.
     The goal is the month's own goal, else the default monthly goal, else the
@@ -757,19 +834,34 @@ def _month_progress(conn, s, month, now):
 
     Today counts toward the expected hours as its work window passes, so the
     pace line moves through the day, and it stops counting as a day left once
-    the work day has ended. now is a datetime (a plain date means midnight)."""
+    the work day has ended. now is a datetime (a plain date means midnight).
+
+    Days off from the phone app are work time you won't work, so the pace is
+    spread over the work time that's left. Settings' days_off_goal decides the
+    goal: 'reduce' lowers it by the share of the month's work time that's off,
+    'keep' leaves it, and 'both' leads with the lowered goal. The top-level
+    numbers follow that choice; 'reduced' and 'full' hold both versions."""
     if not isinstance(now, datetime.datetime):
         now = datetime.datetime.combine(now, datetime.time())
     today = now.date()
     y, m = map(int, month.split('-'))
     first = datetime.date(y, m, 1)
     last = datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.timedelta(days=1)
-    work = [first + datetime.timedelta(n) for n in range((last - first).days + 1)
-            if (first + datetime.timedelta(n)).weekday() in s['work_days']]
-    today_part = (_window_passed(_window(s), now.hour * 60 + now.minute + now.second / 60)
-                  if today in work else 0.0)
-    days_passed = sum(1 for d in work if d < today) + today_part   # e.g. 18.5 at today's midpoint
-    left = len(work) - int(days_passed)    # work days with work still to do, today until it ends
+    w = _window(s)
+    off = _days_off(conn, first.isoformat(), last.isoformat())
+    weight = _work_weights(s, w, first, last, off)    # {work day: share of a day you can work}
+    work = list(weight)
+    minute = now.hour * 60 + now.minute + now.second / 60
+
+    # Work days' worth of time passed and still to come; e.g. 18.5 at today's midpoint
+    passed = sum(weight[d] for d in work if d < today)
+    today_open = False   # today still has work time ahead (it counts as a day left)
+    if today in weight:
+        today_share = _day_share(w, minute, off.get(today.isoformat()))
+        passed += today_share
+        today_open = today_share < weight[today] - 1e-9
+    left = sum(weight[d] for d in work if d > today) + (weight[today] if today_open else 0)
+    available = sum(weight.values())
 
     if month in s['month_goals']:
         goal, source = s['month_goals'][month], 'month'
@@ -777,28 +869,40 @@ def _month_progress(conn, s, month, now):
         goal, source = s['monthly_goal_h'], 'default'
     else:
         goal, source = s['daily_target_h'] * len(work), 'daily'
+    reduced_goal = goal * available / len(work) if work else 0
 
     tracked_ms = conn.execute('''
         SELECT COALESCE(SUM(duration), 0) FROM sessions
         WHERE date(start / 1000, 'unixepoch', 'localtime') BETWEEN ? AND ?
     ''', (first.isoformat(), last.isoformat())).fetchone()[0]
     tracked_h = tracked_ms / 3_600_000
-    expected_h = goal * days_passed / len(work) if work else 0   # where steady pace would be by now
-    remaining_h = max(0.0, goal - tracked_h)
 
+    def pace(g):
+        expected_h = g * passed / available if available else 0   # where steady pace would be by now
+        remaining_h = max(0.0, g - tracked_h)
+        return {
+            'goal_h': round(g, 2),
+            'pct': round(tracked_h / g * 100) if g else 0,
+            'expected_h': round(expected_h, 2),
+            'ahead_h': round(tracked_h - expected_h, 2),
+            'remaining_h': round(remaining_h, 2),
+            'per_day_h': round(remaining_h / left, 2) if left > 1e-9 else None,
+        }
+
+    mode = s['days_off_goal']
+    reduced, full = pace(reduced_goal), pace(goal)
     return {
         'month': month,
-        'goal_h': round(goal, 2),
         'goal_source': source,
         'tracked_ms': tracked_ms,
-        'pct': round(tracked_h / goal * 100) if goal else 0,
         'work_days': len(work),
-        'work_days_done': len(work) - left,
-        'work_days_left': left,
-        'expected_h': round(expected_h, 2),
-        'ahead_h': round(tracked_h - expected_h, 2),
-        'remaining_h': round(remaining_h, 2),
-        'per_day_h': round(remaining_h / left, 2) if left else None,
+        'work_days_done': round(passed, 2),
+        'work_days_left': round(left, 2),
+        'days_off': round(len(work) - available, 2),   # in work days; a half day off is 0.5
+        'days_off_goal': mode,
+        **(full if mode == 'keep' else reduced),
+        'reduced': reduced,
+        'full': full,
     }
 
 
@@ -814,6 +918,34 @@ def goal():
     result = _month_progress(conn, cfg.load(conn), month, datetime.datetime.now())
     conn.close()
     return jsonify(result)
+
+
+@app.route('/api/days_off')
+def days_off():
+    """A year's days off from the phone app, with work days off per type
+    (a half day counts 0.5; days off on non-work days count 0)."""
+    year = request.args.get('year') or str(datetime.date.today().year)
+    if not re.fullmatch(r'\d{4}', year):
+        return jsonify({'error': 'year must look like 2026'}), 400
+    conn = get_db()
+    s = cfg.load(conn)
+    w = _window(s)
+    entries = _days_off(conn, f'{year}-01-01', f'{year}-12-31')
+    conn.close()
+    totals = {t: 0.0 for t in DAY_OFF_TYPES}
+    out = []
+    for date, o in sorted(entries.items()):
+        work_day = datetime.date.fromisoformat(date).weekday() in s['work_days']
+        days = 1 - _day_share(w, w.end, o) if work_day else 0.0
+        totals[o.type] = totals.get(o.type, 0) + days
+        out.append({**_day_off_json(w, o), 'days': round(days, 2)})
+    return jsonify({
+        'year': int(year),
+        'today': datetime.date.today().isoformat(),
+        'entries': out,
+        'totals': {t: round(v, 2) for t, v in totals.items()},
+        'total': round(sum(totals.values()), 2),
+    })
 
 
 @app.route('/api/period')
@@ -966,6 +1098,12 @@ def _fmt_h(hours):
     return f'{hours:.1f}'.rstrip('0').rstrip('.') + 'h'
 
 
+def _fmt_days(days):
+    """1 → '1 day', 2.5 → '2.5 days', 0 → '0 days'."""
+    n = f'{days:.1f}'.rstrip('0').rstrip('.')
+    return f"{n} day{'' if n == '1' else 's'}"
+
+
 def _fmt_ago(seconds):
     if seconds < 90:
         return 'just now'
@@ -1006,12 +1144,24 @@ def homepage_summary():
         WHERE s.cnf = 0 AND s.duration > 0 AND o.finished = 0
     ''').fetchone()[0]
     month = _month_progress(conn, s, today.strftime('%Y-%m'), datetime.datetime.now())
+    sunday = monday + datetime.timedelta(days=6)
+    week_weights = _work_weights(s, _window(s), monday, sunday,
+                                 _days_off(conn, monday.isoformat(), sunday.isoformat()))
     # When the newest export was written (Syncthing keeps the phone's file times)
     last_ns = conn.execute('SELECT MAX(mtime_ns) FROM imports WHERE ok = 1').fetchone()[0]
     conn.close()
 
-    week_target_s = s['daily_target_h'] * len(s['work_days']) * 3600
-    ahead = month['ahead_h']
+    # The week's target leaves out days off
+    week_target_s = s['daily_target_h'] * sum(week_weights.values()) * 3600
+
+    def pace_text(ahead):
+        return ('on pace' if abs(ahead) < 0.05 else
+                f"{_fmt_hm(abs(ahead) * 3600)} {'ahead' if ahead > 0 else 'behind'}")
+
+    def per_day_text(p):
+        return _fmt_hm(p['per_day_h'] * 3600) if p['per_day_h'] is not None else '—'
+
+    full = month['full']
     last_sync = (datetime.datetime.fromtimestamp(last_ns / 1e9, datetime.timezone.utc)
                  .isoformat(timespec='seconds') if last_ns else None)
     return jsonify({
@@ -1025,9 +1175,15 @@ def homepage_summary():
         'month_goal':     _fmt_h(month['goal_h']),
         'month_pct':      month['pct'],
         'month_left':     _fmt_hm(month['remaining_h'] * 3600),
-        'month_pace':     ('on pace' if abs(ahead) < 0.05 else
-                           f"{_fmt_hm(abs(ahead) * 3600)} {'ahead' if ahead > 0 else 'behind'}"),
-        'month_per_day':  _fmt_hm(month['per_day_h'] * 3600) if month['per_day_h'] is not None else '—',
+        'month_pace':     pace_text(month['ahead_h']),
+        'month_per_day':  per_day_text(month),
+        # The same for the goal before days off are taken off it
+        'month_goal_full':    _fmt_h(full['goal_h']),
+        'month_left_full':    _fmt_hm(full['remaining_h'] * 3600),
+        'month_pace_full':    pace_text(full['ahead_h']),
+        'month_per_day_full': per_day_text(full),
+        'month_days_off':     _fmt_days(month['days_off']),
+        'week_days_off':      _fmt_days(len(week_weights) - sum(week_weights.values())),
         'orders_today':   orders_today,
         'active_orders':  active,
         'idle_orders':    idle,

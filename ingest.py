@@ -1,6 +1,7 @@
 import fnmatch
 import json
 import os
+import re
 import stat
 import threading
 
@@ -111,6 +112,8 @@ def _ingest():
 
             _import_orders(conn, data.get('orders', []), filename, is_archive=False, skip=deleted)
             _import_orders(conn, data.get('archive', []), filename, is_archive=True, skip=deleted)
+            if isinstance(data.get('daysOff'), list):   # exports from before days off existed leave them alone
+                _import_days_off(conn, data['daysOff'])
             ok = 1
             (imported if i in changed else reapplied).append(filename)
         except OSError as e:
@@ -152,6 +155,31 @@ def _log(r):
     for file, error in sorted(errors - _last_errors):
         print(f'Could not import {file}: {error}', flush=True)
     _last_errors = errors
+
+
+DAY_OFF_TYPES = ('vacation', 'sick', 'holiday', 'other')
+_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+_TIME_RE = re.compile(r'^\d{2}:\d{2}$')
+
+
+def _import_days_off(conn, entries):
+    """Every export holds the app's whole list of days off, so the file being
+    applied replaces the stored list. Files are applied oldest to newest, so
+    the newest export has the final say, including about days removed in the
+    app. Entries: {date: 'YYYY-MM-DD', type, from: 'HH:MM', to: 'HH:MM', note};
+    without from/to it's the whole day."""
+    conn.execute('DELETE FROM days_off')
+    for e in entries:
+        if not isinstance(e, dict) or not _DATE_RE.match(str(e.get('date', ''))):
+            continue
+        frm, to = e.get('from'), e.get('to')
+        if not (isinstance(frm, str) and isinstance(to, str)
+                and _TIME_RE.match(frm) and _TIME_RE.match(to) and frm < to):
+            frm = to = None
+        kind = e.get('type') if e.get('type') in DAY_OFF_TYPES else 'other'
+        conn.execute('''
+            INSERT OR REPLACE INTO days_off (date, type, from_time, to_time, note) VALUES (?, ?, ?, ?, ?)
+        ''', (e['date'], kind, frm, to, str(e.get('note') or '')[:200]))
 
 
 def _import_orders(conn, orders, source_file, is_archive, skip=frozenset()):

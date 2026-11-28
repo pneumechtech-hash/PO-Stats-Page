@@ -40,6 +40,7 @@
             --amber-border: rgba(245, 158, 11, 0.35);
 
             --hm-0: #273146; --hm-1: #0e4430; --hm-2: #11694a; --hm-3: #10a06a; --hm-4: #34d399;
+            --off: #8b5cf6; --miss: #dc2626;   /* days off (purple), missed work days (red) */
 
             --shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
             --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.45);
@@ -70,6 +71,7 @@
             --amber-border: rgba(245, 158, 11, 0.45);
 
             --hm-0: #e8edf3; --hm-1: #c6f1dc; --hm-2: #7fd8ad; --hm-3: #2fb57a; --hm-4: #0f7b52;
+            --off: #7c3aed; --miss: #dc2626;
 
             --shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
             --shadow-lg: 0 20px 50px rgba(16, 24, 40, 0.18);
@@ -300,6 +302,18 @@
         .hm-0 { background: var(--hm-0); } .hm-1 { background: var(--hm-1); } .hm-2 { background: var(--hm-2); }
         .hm-3 { background: var(--hm-3); } .hm-4 { background: var(--hm-4); }
         .hm-axis { font-size: 0.66rem; color: var(--text-muted); }
+        .hm.hm-off  { background: var(--off); }
+        /* Missed work days are red and also carry a ×, for anyone who can't tell red from green */
+        .hm.hm-miss { background: var(--miss); position: relative; }
+        .hm-miss::after {
+            content: '×'; position: absolute; inset: 0; display: grid; place-items: center;
+            color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
+        }
+        .hm.hm-ring { box-shadow: inset 0 0 0 2px var(--off); }   /* part of the day off */
+        .hm.hm-pad  { background: transparent; }                  /* outside the period */
+        .hm.hm-future { opacity: 0.45; }
+        .hm-legend { display: flex; align-items: center; gap: 4px 14px; flex-wrap: wrap; margin-top: 12px; font-size: 0.74rem; }
+        .hm-legend > span { display: inline-flex; align-items: center; gap: 4px; }
 
         /* ── Gap analysis ──────────────────────────────────────────── */
         .mini-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; flex: 1; }
@@ -334,6 +348,8 @@
         .seg-gap      { background: #ef4444; }
         .seg-lunch    { background: var(--lunch); color: var(--text); }
         .seg-overtime { background: #6ee7b7; color: #064e3b; }
+        .seg-off      { background: var(--off); }
+        .pill-off     { background: var(--purple-soft); color: var(--purple-text); }
         .timeline-axis {
             display: flex; justify-content: space-between; padding: 0 2px; margin: 4px 0 8px;
             font-size: 0.68rem; color: var(--text-muted); font-variant-numeric: tabular-nums;
@@ -437,6 +453,18 @@
         .progress-mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--text); }
         .goal-facts { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 0.82rem; color: var(--text-dim); }
         .goal-facts strong { color: var(--text); font-weight: 600; }
+        .goal-alt { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+
+        /* ── Days off ──────────────────────────────────────────────── */
+        .off-totals { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+        .off-total { padding: 5px 12px; border-radius: 99px; background: var(--purple-soft); color: var(--purple-text); font-size: 0.8rem; font-weight: 600; }
+        .off-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 28px; }
+        @media (max-width: 860px) { .off-cols { grid-template-columns: 1fr; } }
+        .off-cols .mini-label { margin-bottom: 4px; }
+        .off-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
+        .off-row:last-child { border-bottom: none; }
+        .off-date { min-width: 104px; font-variant-numeric: tabular-nums; }
+        .off-type { color: var(--purple-text); font-weight: 600; }
         .goal-edit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .goal-edit .input { width: 96px; }
 
@@ -755,6 +783,15 @@
             </div>
             <div id="idleList"></div>
         </section>
+
+        <!-- Days off from the phone app (this year, not date-filtered) -->
+        <section id="daysOffCard" class="card" data-section="days_off">
+            <div class="card-head">
+                <div class="card-title"><svg class="ic c-purple"><use href="#i-calendar"/></svg><span id="daysOffTitle">Days Off</span></div>
+                <span class="muted">marked in the phone app</span>
+            </div>
+            <div id="daysOffBody"><div class="empty-note">Loading…</div></div>
+        </section>
     </div>
 
     <!-- Period-filtered sections -->
@@ -948,6 +985,13 @@
             <div class="field" style="margin-top:16px">Goals for specific months</div>
             <div id="setMonthRows" style="margin-top:8px"></div>
             <button class="btn btn-ghost" onclick="addMonthRow()">+ Add a month</button>
+            <label class="field" style="margin-top:16px;max-width:320px">Days off (marked in the phone app)
+                <select class="input" id="setDaysOffGoal">
+                    <option value="reduce">Lower the goal for days off</option>
+                    <option value="keep">Keep the goal as set</option>
+                    <option value="both">Show both</option>
+                </select></label>
+            <div class="set-help">Lowering takes each day off's share of the month's work time out of the goal. Keeping it means making the time up on other days. Either way, the pace is spread over the days you're working. Show both leads with the lowered goal and adds a line for the goal as set.</div>
         </div>
 
         <div class="set-section">
@@ -983,6 +1027,7 @@ const DOW_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const sectionOn = key => !SETTINGS || SETTINGS.sections[key] !== false;
 const fmtH = h => `${+(+h).toFixed(2)}h`;
+const fmtDays = n => `${+(+n).toFixed(1)}`;   // 2 → "2", 2.5625 → "2.6"
 const fmtHM = min => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(Math.round(min % 60)).padStart(2, '0')}`;
 // Hours in the work window, lunch excluded
 function windowHours() {
@@ -1281,7 +1326,7 @@ async function loadCharts(from, to) {
 
     renderTagChart(d.tag_times);
     renderDayChart(d.day_times);
-    renderHeatmap(d.day_times);
+    renderHeatmap(d, from, to);
 }
 
 // Top tags by time; the long tail is folded into one "Other" bar so labels stay readable
@@ -1809,9 +1854,22 @@ async function loadGaps(from, to) {
         const lunch = Math.max(0, Math.min(LUNCH_END, end) - Math.max(LUNCH_START, WORK_START_MIN));
         return Math.max(0, end - WORK_START_MIN - lunch);
     };
-    const windowSoFar  = days.filter(d => d.has_sessions).reduce((sum, d) => sum + passedMin(timeToMin(d.gap_until)), 0);
+    // Window minutes a day off covers before end (lunch inside it isn't taken twice)
+    const offMin = (d, end) => {
+        const sp = d.day_off && d.day_off.span;
+        if (!sp) return 0;
+        const a = timeToMin(sp[0]), b = Math.min(timeToMin(sp[1]), end);
+        return Math.max(0, b - a) - Math.max(0, Math.min(b, LUNCH_END) - Math.max(a, LUNCH_START));
+    };
+    const tracked      = days.filter(d => d.has_sessions);
+    const windowSoFar  = tracked.reduce((sum, d) => {
+        const until = timeToMin(d.gap_until);
+        return sum + Math.max(0, passedMin(until) - offMin(d, until));
+    }, 0);
     const bookedMin    = summary.total_worked_min;
-    const shortfallMin = Math.max(0, TARGET_MIN * summary.days_with_data - bookedMin);
+    // The target shrinks on days with time off
+    const targetMin    = tracked.reduce((sum, d) => sum + TARGET_MIN * Math.max(0, 1 - offMin(d, WORK_END_MIN) / WINDOW_MIN), 0);
+    const shortfallMin = Math.max(0, Math.round(targetMin - bookedMin));
     const unbookedMin  = Math.max(0, windowSoFar - bookedMin);
 
     const mini = (label, value, cls = '') =>
@@ -1830,6 +1888,7 @@ async function loadGaps(from, to) {
             <div class="legend-item"><div class="legend-dot" style="background:var(--lunch)"></div> Lunch (excluded)</div>
             <div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div> Overtime past ${fmtHM(WORK_END_MIN)}</div>
             ${hasToday ? '<div class="legend-item"><div class="legend-dot seg-future"></div> Rest of today</div>' : ''}
+            ${tracked.some(d => d.day_off) ? '<div class="legend-item"><div class="legend-dot seg-off"></div> Day off (excluded)</div>' : ''}
         </div>`;
 
     const dayBlocksHtml = days.filter(day => day.has_sessions).map(day => {
@@ -1868,6 +1927,7 @@ async function loadGaps(from, to) {
         return `<div class="day-block">
                     <div class="day-header">
                         <span class="day-label">${fmtDateLabel(day.date)}</span>
+                        ${day.day_off ? `<span class="pill pill-off">${esc(dayOffText(day.day_off))}</span>` : ''}
                         ${lateHtml}${overtimeHtml}
                         <span class="day-worked">Worked: <strong>${workedStr}</strong></span>
                         <span class="gap-badge ${badgeClass}">${badgeText}</span>
@@ -1890,6 +1950,8 @@ function buildTimeline(day) {
 
     const segs = [];
     let cursor = WORK_START_MIN;
+    const sp = day.day_off && day.day_off.span;
+    const offSpan = sp ? [timeToMin(sp[0]), timeToMin(sp[1])] : null;
 
     for (const iv of day.active_intervals) {
         const ivStart = timeToMin(iv.start);
@@ -1898,7 +1960,7 @@ function buildTimeline(day) {
         // Gap before this session (within work window only)
         const gapEnd = Math.min(ivStart, WORK_END_MIN);
         if (gapEnd > cursor) {
-            pushGapSegs(cursor, gapEnd, segs);
+            pushGapSegs(cursor, gapEnd, segs, offSpan);
         }
 
         // Work/overtime segment (clamp start to 07:30)
@@ -1921,7 +1983,7 @@ function buildTimeline(day) {
     // now (gap_until); the rest of the day is shown as not happened yet.
     const gapUntil = Math.min(day.gap_until ? timeToMin(day.gap_until) : WORK_END_MIN, WORK_END_MIN);
     if (cursor < gapUntil) {
-        pushGapSegs(cursor, gapUntil, segs);
+        pushGapSegs(cursor, gapUntil, segs, offSpan);
     }
     const futureStart = Math.max(cursor, gapUntil);
     if (futureStart < WORK_END_MIN) {
@@ -1934,6 +1996,7 @@ function buildTimeline(day) {
         const label = seg.type === 'work'     ? fmtMs(dur * 60000)
                     : seg.type === 'overtime'  ? `+${Math.round(dur)}m OT`
                     : seg.type === 'lunch'     ? 'Lunch'
+                    : seg.type === 'off'       ? dayOffLabel(day.day_off)
                     : seg.type === 'future'    ? 'Rest of today'
                     : `${Math.round(dur)}m`;
         const show = parseFloat(pct) > 7 ? label : '';
@@ -1941,46 +2004,66 @@ function buildTimeline(day) {
     }).join('');
 }
 
-function pushGapSegs(gapStart, gapEnd, segs) {
-    if (LUNCH_END <= LUNCH_START || gapEnd <= LUNCH_START || gapStart >= LUNCH_END) {
-        if (gapEnd > gapStart) segs.push({ type: 'gap', start: gapStart, end: gapEnd });
-    } else {
-        if (gapStart < LUNCH_START)
-            segs.push({ type: 'gap', start: gapStart, end: LUNCH_START });
-        segs.push({ type: 'lunch',
-                    start: Math.max(gapStart, LUNCH_START),
-                    end:   Math.min(gapEnd, LUNCH_END) });
-        if (gapEnd > LUNCH_END)
-            segs.push({ type: 'gap', start: LUNCH_END, end: gapEnd });
+// Splits an untracked stretch into gap segments, with lunch and any time off
+// (offSpan, [start, end] minutes) shown as their own segments
+function pushGapSegs(gapStart, gapEnd, segs, offSpan = null) {
+    const cuts = [];
+    if (LUNCH_END > LUNCH_START) cuts.push({ type: 'lunch', a: LUNCH_START, b: LUNCH_END });
+    if (offSpan) cuts.push({ type: 'off', a: offSpan[0], b: offSpan[1] });
+    cuts.sort((x, y) => x.a - y.a);
+    let cur = gapStart;
+    for (const c of cuts) {
+        const a = Math.max(c.a, cur), b = Math.min(c.b, gapEnd);
+        if (b <= a) continue;
+        if (a > cur) segs.push({ type: 'gap', start: cur, end: a });
+        segs.push({ type: c.type, start: a, end: b });
+        cur = b;
     }
+    if (gapEnd > cur) segs.push({ type: 'gap', start: cur, end: gapEnd });
 }
 
 // ── Calendar heatmap ─────────────────────────────────────────────
-function renderHeatmap(dayTimes) {
+const DAY_OFF_LABELS = { vacation: 'Vacation', sick: 'Sick', holiday: 'Holiday', other: 'Day off' };
+const dayOffLabel = o => DAY_OFF_LABELS[o.type] || 'Day off';
+const dayOffText = o => `${dayOffLabel(o)}${o.whole ? '' : ` ${o.from}–${o.to}`}${o.note ? ` (${o.note})` : ''}`;
+const isWorkDay = date => SETTINGS ? SETTINGS.work_days.includes((date.getDay() + 6) % 7) : date.getDay() % 6 !== 0;
+const localIso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+// Green shades for hours (the darkest means the daily target was reached),
+// purple for days off, red with a × for work days with nothing tracked.
+function renderHeatmap(d, from, to) {
     const wrap = document.getElementById('heatmapWrap');
-    if (!dayTimes || !dayTimes.length) {
+    const dateMap = {};
+    for (const x of d.day_times) dateMap[x.day] = x.total_ms / 3600000;
+    const off = {};
+    for (const o of d.days_off || []) off[o.date] = o;
+
+    // The period, or for All Time from the first tracked day (or day off) to today
+    // (or a later planned day off)
+    const now = new Date(), todayIso = localIso(now);
+    const known = [...Object.keys(dateMap), ...Object.keys(off)].sort();
+    const firstIso = from || known[0];
+    const lastIso  = to || [todayIso, ...known].sort().pop();
+    if (!firstIso) {
         wrap.innerHTML = '<div class="empty-note">No data for this period.</div>';
         return;
     }
-
-    const dateMap = {};
-    for (const d of dayTimes) dateMap[d.day] = d.total_ms / 3600000;
-
-    const sorted    = Object.keys(dateMap).sort();
-    const firstDate = new Date(sorted[0] + 'T00:00:00');
-    const lastDate  = new Date(sorted[sorted.length - 1] + 'T00:00:00');
+    const firstDate = new Date(firstIso + 'T00:00:00');
+    const lastDate  = new Date(lastIso + 'T00:00:00');
 
     const dow = d => d.getDay() === 0 ? 6 : d.getDay() - 1;  // 0=Mon..6=Sun
-    const localIso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-
     const start = new Date(firstDate); start.setDate(start.getDate() - dow(start));
     const end   = new Date(lastDate);  end.setDate(end.getDate() + (6 - dow(end)));
 
-    const level = h => !h ? 0 : h < 2 ? 1 : h < 4 ? 2 : h < 6 ? 3 : 4;
+    const T = DAILY_TARGET_H;
+    const level = h => !h ? 0 : h < T / 3 ? 1 : h < T * 2 / 3 ? 2 : h < T ? 3 : 4;
+    // Today only counts as missed once the work day is over
+    const dayOver = iso => iso < todayIso || (iso === todayIso && now.getHours() * 60 + now.getMinutes() >= WORK_END_MIN);
 
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const cols = []; const monthLabels = []; let lastMonth = -1;
     const cur = new Date(start);
+    let missed = 0;
 
     while (cur <= end) {
         if (cur.getMonth() !== lastMonth) {
@@ -1988,10 +2071,27 @@ function renderHeatmap(dayTimes) {
             lastMonth = cur.getMonth();
         }
         const cells = [];
-        for (let d = 0; d < 7; d++) {
+        for (let i = 0; i < 7; i++) {
             const iso = localIso(cur);
-            const h   = dateMap[iso];
-            cells.push({ iso, h, tip: h > 0 ? `${iso}: ${h.toFixed(1)}h` : iso });
+            const h   = dateMap[iso] || 0;
+            const o   = off[iso];
+            const cls = [`hm-${level(h)}`];
+            const tip = [fmtDateLabel(iso)];
+            if (h > 0) tip.push(`${h.toFixed(1)}h`);
+            if (o) tip.push(dayOffText(o));
+            if (iso < firstIso || iso > lastIso) {
+                cls.push('hm-pad');
+            } else if (!h && o && o.whole) {
+                cls.push('hm-off');
+            } else if (!h && isWorkDay(cur) && d.first_day && iso >= d.first_day && dayOver(iso)) {
+                cls.push('hm-miss');
+                tip.push(o ? 'Nothing tracked in the rest of the day' : 'Missed work day: nothing tracked');
+                missed++;
+            } else if (iso > todayIso && !o) {
+                cls.push('hm-future');
+            }
+            if (o && !cls.includes('hm-off') && !cls.includes('hm-pad')) cls.push('hm-ring');
+            cells.push({ cls: cls.join(' '), tip: tip.join(' · ') });
             cur.setDate(cur.getDate() + 1);
         }
         cols.push(cells);
@@ -2010,11 +2110,11 @@ function renderHeatmap(dayTimes) {
 
     const grid = cols.map(cells =>
         `<div style="display:flex;flex-direction:column;gap:3px">${cells.map(c =>
-            `<div class="hm hm-${level(c.h)}" title="${c.tip}"></div>`
+            `<div class="hm ${c.cls}" title="${esc(c.tip)}"></div>`
         ).join('')}</div>`
     ).join('');
 
-    const legend = [0, 1, 2, 3, 4].map(l => `<div class="hm hm-${l}"></div>`).join('');
+    const shades = [0, 1, 2, 3, 4].map(l => `<div class="hm hm-${l}"></div>`).join('');
 
     wrap.innerHTML = `
         <div class="hm-scroll">
@@ -2024,8 +2124,11 @@ function renderHeatmap(dayTimes) {
                 <div style="display:flex;gap:3px">${grid}</div>
             </div>
         </div>
-        <div class="muted" style="display:flex;align-items:center;gap:4px;margin-top:12px;font-size:0.74rem">
-            <span style="margin-right:4px">Less</span>${legend}<span style="margin-left:4px">More (8h+)</span>
+        <div class="hm-legend muted">
+            <span>Less ${shades} Daily target (${fmtH(T)}+)</span>
+            <span><div class="hm hm-off"></div> Day off</span>
+            <span><div class="hm hm-0 hm-ring"></div> Part of the day off</span>
+            <span><div class="hm hm-miss"></div> Missed work day${missed ? ` (${missed})` : ''}</span>
         </div>`;
 }
 
@@ -2297,10 +2400,24 @@ function renderGoal() {
         : g.expected_h <= 0 ? '<span class="muted">Month just started</span>'
         : g.ahead_h >= 0 ? `<span class="c-green">${fmtMs(g.ahead_h * 3600000)} ahead of pace</span>`
         : `<span class="${color === AMBER ? 'c-amber' : 'c-red'}">${fmtMs(-g.ahead_h * 3600000)} behind pace</span>`;
-    const source = g.goal_source === 'month' ? `your goal for ${monthLong(g.month)}`
+    const source = (g.goal_source === 'month' ? `your goal for ${monthLong(g.month)}`
         : g.goal_source === 'default' ? 'your usual monthly goal'
-        : `${fmtH(DAILY_TARGET_H)} × ${g.work_days} work days`;
+        : `${fmtH(DAILY_TARGET_H)} × ${g.work_days} work days`)
+        + (g.days_off <= 0 ? ''
+            : g.days_off_goal === 'keep' ? `, kept as set (${fmtH(g.full.goal_h)}) despite days off`
+            : `, less ${fmtDays(g.days_off)} day${fmtDays(g.days_off) === '1' ? '' : 's'} off (${fmtH(g.full.goal_h)} before)`);
     const markPct = g.goal_h ? Math.min(100, g.expected_h / g.goal_h * 100) : 0;
+    // "Show both": the goal before days off, with its own pace
+    const f = g.full;
+    const fPace = f.remaining_h <= 0 ? 'goal reached'
+        : f.ahead_h >= 0 ? `${fmtMs(f.ahead_h * 3600000)} ahead of pace` : `${fmtMs(-f.ahead_h * 3600000)} behind pace`;
+    const alt = g.days_off_goal === 'both' && g.days_off > 0 ? `
+        <div class="goal-facts goal-alt">
+            <span>Without days off: goal <strong>${fmtH(f.goal_h)}</strong></span>
+            <span>Remaining <strong>${fmtMs(f.remaining_h * 3600000)}</strong></span>
+            ${f.per_day_h !== null && f.remaining_h > 0 ? `<span>Needed per day <strong>${fmtMs(f.per_day_h * 3600000)}</strong></span>` : ''}
+            <span>${fPace}</span>
+        </div>` : '';
 
     document.getElementById('goalTitle').textContent = `${monthLong(g.month)} Goal`;
     document.getElementById('goalBody').innerHTML = `
@@ -2316,10 +2433,11 @@ function renderGoal() {
         <div class="goal-facts">
             <span title="Where a steady pace would be by now. Today adds up through your work hours, lunch excluded.">Expected by now <strong>${fmtMs(g.expected_h * 3600000)}</strong></span>
             <span>Remaining <strong>${fmtMs(g.remaining_h * 3600000)}</strong></span>
-            <span title="Today counts until your work day ends (${esc(SETTINGS ? SETTINGS.work_end : '')})">Work days left <strong>${g.work_days_left}</strong></span>
-            ${g.per_day_h !== null && !reached ? `<span>Needed per day <strong>${fmtMs(g.per_day_h * 3600000)}</strong></span>` : ''}
+            <span title="Today counts until your work day ends (${esc(SETTINGS ? SETTINGS.work_end : '')}). Days off are left out; part of a day off counts as part of a day.">Work days left <strong>${fmtDays(g.work_days_left)}</strong></span>
+            ${g.per_day_h !== null && !reached ? `<span title="Per full work day">Needed per day <strong>${fmtMs(g.per_day_h * 3600000)}</strong></span>` : ''}
+            ${g.days_off > 0 ? `<span class="c-purple" title="Marked in the phone app">Days off <strong class="c-purple">${fmtDays(g.days_off)}</strong></span>` : ''}
             <span class="muted">Goal: ${source}</span>
-        </div>`;
+        </div>${alt}`;
     document.getElementById('goalResetBtn').hidden = g.goal_source !== 'month';
 }
 
@@ -2329,7 +2447,7 @@ function editGoal(open) {
     if (open) {
         document.getElementById('goalEditMonth').textContent = monthLong(goalData.month);
         const input = document.getElementById('goalInput');
-        input.value = goalData.goal_h;
+        input.value = goalData.full.goal_h;   // the goal as set, before days off
         input.focus();
         input.select();
     }
@@ -2480,7 +2598,8 @@ const SECTION_LABELS = {
     idle:        ['Idle active orders', "Unfinished orders you haven't touched in a while"],
     compare:     ['Compare with previous period', 'Totals for the selected period, with the change since the one before'],
     tag_stats:   ['Typical time per tag', 'Median and average time per finished order, per tag'],
-    heatmap:     ['Activity heatmap', 'Calendar of hours per day'],
+    heatmap:     ['Activity heatmap', 'Calendar of hours per day, days off and missed work days'],
+    days_off:    ['Days off', 'Days off marked in the phone app, with totals for the year'],
     gaps:        ['Inactive gaps', 'Gaps in each work day, with a timeline'],
     patterns:    ['Inactive patterns', 'When in the day and week gaps tend to happen'],
     timesheet:   ['Timesheet export', 'A CSV of time per day and order, from the orders table'],
@@ -2564,6 +2683,7 @@ function openSettings() {
     document.getElementById('setMinGap').value      = s.min_gap_min;
     document.getElementById('setIdleDays').value    = s.idle_days;
     document.getElementById('setMonthlyGoal').value = s.monthly_goal_h ?? '';
+    document.getElementById('setDaysOffGoal').value = s.days_off_goal;
     document.getElementById('setMonthRows').innerHTML = '';
     Object.entries(s.month_goals).forEach(([m, h]) => addMonthRow(m, h));
     document.getElementById('setSections').innerHTML = Object.entries(SECTION_LABELS).map(([key, [label, help]]) => `
@@ -2596,6 +2716,7 @@ async function saveSettings() {
         idle_days: val('setIdleDays'),
         monthly_goal_h: val('setMonthlyGoal') === '' ? null : val('setMonthlyGoal'),
         month_goals: goals,
+        days_off_goal: val('setDaysOffGoal'),
         sections: Object.fromEntries([...document.querySelectorAll('#setSections input')].map(i => [i.dataset.key, i.checked])),
     };
     const btn = document.getElementById('settingsSave');
@@ -2623,7 +2744,47 @@ function refreshAll() {
     if (sectionOn('idle')) loadIdle();
     loadGoal();
     loadUnconfirmed();
+    loadDaysOff();
     applyFilter();
+}
+
+// ── Days off (this year, from the phone app) ──────────────────────
+const DAY_OFF_TOTAL_LABELS = { vacation: 'Vacation', sick: 'Sick', holiday: 'Holiday', other: 'Other' };
+
+async function loadDaysOff() {
+    if (!sectionOn('days_off')) return;
+    const body = document.getElementById('daysOffBody');
+    let d;
+    try {
+        d = await (await fetch('/api/days_off')).json();
+    } catch (e) {
+        body.innerHTML = `<div class="empty-note">Couldn't load the days off: ${esc(e.message)}</div>`;
+        return;
+    }
+    document.getElementById('daysOffTitle').textContent = `Days Off ${d.year}`;
+    if (!d.entries.length) {
+        body.innerHTML = `<div class="empty-note">No days off marked for ${d.year}. Mark them in the phone app
+            (Stats → Days Off); they show up here, on the heatmap and in the month goal.</div>`;
+        return;
+    }
+    const totals = Object.entries(d.totals).filter(([, n]) => n > 0)
+        .map(([t, n]) => `<span class="off-total">${DAY_OFF_TOTAL_LABELS[t] || t} ${fmtDays(n)}</span>`).join('');
+    const row = o => `
+        <div class="off-row">
+            <span class="off-date">${fmtDateLabel(o.date)}</span>
+            <span class="off-type">${dayOffLabel(o)}</span>
+            <span class="muted">${o.whole ? (o.days ? 'Whole day' : 'Not a work day') : `${o.from}–${o.to}`}${o.note ? ' · ' + esc(o.note) : ''}</span>
+        </div>`;
+    const upcoming = d.entries.filter(o => o.date >= d.today);
+    const taken = d.entries.filter(o => o.date < d.today).reverse();
+    const TAKEN_LIMIT = 8;
+    body.innerHTML = `
+        <div class="off-totals">${totals}<span class="muted">${fmtDays(d.total)} work day${fmtDays(d.total) === '1' ? '' : 's'} off in ${d.year}</span></div>
+        <div class="off-cols">
+            <div><div class="mini-label">Coming up</div>${upcoming.map(row).join('') || '<div class="muted">None marked</div>'}</div>
+            <div><div class="mini-label">Taken</div>${taken.slice(0, TAKEN_LIMIT).map(row).join('') || '<div class="muted">None yet</div>'}
+                ${taken.length > TAKEN_LIMIT ? `<div class="muted" style="margin-top:6px">and ${taken.length - TAKEN_LIMIT} earlier</div>` : ''}</div>
+        </div>`;
 }
 
 // ── Auto-import ───────────────────────────────────────────────────
@@ -2699,6 +2860,7 @@ setInterval(() => { if (!document.hidden) autoImportAndRefresh(); }, AUTO_IMPORT
     if (sectionOn('idle')) loadIdle();
     loadGoal();
     loadUnconfirmed();
+    loadDaysOff();
     setFilter('all');  // default to All Time; applyFilter (called by setFilter) loads orders too
 });
 </script>

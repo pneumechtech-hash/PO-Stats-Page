@@ -10,7 +10,13 @@ import re
 from db import get_db
 
 # Optional dashboard sections that can be turned off in Settings
-SECTIONS = ('goal', 'unconfirmed', 'idle', 'compare', 'tag_stats', 'heatmap', 'gaps', 'patterns', 'timesheet')
+SECTIONS = ('goal', 'unconfirmed', 'idle', 'compare', 'tag_stats', 'heatmap', 'days_off', 'gaps', 'patterns',
+            'timesheet')
+
+# How days off (marked in the phone app) affect a monthly goal: 'reduce' lowers
+# it by the share of the month's work time that's off, 'keep' leaves it as set,
+# 'both' uses the lowered goal and also shows the one before days off.
+DAYS_OFF_GOAL = ('reduce', 'keep', 'both')
 
 DEFAULTS = {
     'work_start': '07:30',
@@ -23,6 +29,7 @@ DEFAULTS = {
     'idle_days': 7,                 # unfinished orders untouched this long are flagged
     'monthly_goal_h': None,         # None: daily target x work days in the month
     'month_goals': {},              # per-month overrides, e.g. {"2026-12": 120}
+    'days_off_goal': 'both',        # see DAYS_OFF_GOAL
     'sections': {name: True for name in SECTIONS},
 }
 
@@ -99,6 +106,8 @@ def update(changes):
         s['monthly_goal_h'] = None
     else:
         s['monthly_goal_h'] = _hours(s['monthly_goal_h'], 'The monthly goal', 744)
+    if s['days_off_goal'] not in DAYS_OFF_GOAL:
+        raise ValueError(f"Days off and the goal must be one of: {', '.join(DAYS_OFF_GOAL)}.")
 
     conn = get_db()
     conn.execute('''
